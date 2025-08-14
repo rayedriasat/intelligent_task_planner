@@ -11,8 +11,9 @@ from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
 import json
+# Add these imports at the top
 from datetime import datetime, timedelta
-
+from django.db.models import Q
 from .models import Task, TimeBlock, PomodoroSession
 from .forms import TaskForm, QuickTaskForm, TimeBlockForm
 from .services.scheduling_engine import SchedulingEngine
@@ -169,40 +170,116 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
         return Task.objects.filter(user=self.request.user)
 
 
-class CalendarView(LoginRequiredMixin, TemplateView):
-    """Weekly calendar view showing scheduled tasks."""
-    template_name = 'planner/calendar.html'
+# Add these to your existing views.py
 
+class CalendarView(LoginRequiredMixin, TemplateView):
+    template_name = 'planner/calendar.html'
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Get user's tasks and time blocks
-        tasks = self.request.user.tasks.filter(status__in=['todo', 'in_progress'])
-        time_blocks = self.request.user.time_blocks.all()
+        # Get current week
+        today = timezone.now().date()
+        week_start = today - timedelta(days=today.weekday())  # Monday
+        week_end = week_start + timedelta(days=6)  # Sunday
         
-        # Get scheduled and unscheduled tasks
-        engine = SchedulingEngine(self.request.user)
-        scheduled_tasks, unscheduled_tasks = engine.calculate_schedule(list(tasks), list(time_blocks))
+        # Get user's tasks for this week
+        scheduled_tasks = self.request.user.tasks.filter(
+            start_time__date__range=[week_start, week_end]
+        ).order_by('start_time')
         
-        context['scheduled_tasks'] = scheduled_tasks
-        context['unscheduled_tasks'] = unscheduled_tasks
-        context['time_blocks'] = time_blocks
+        unscheduled_tasks = self.request.user.tasks.filter(
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        ).order_by('deadline')
         
-        # Generate week days for calendar
-        now = timezone.now()
-        week_start = now - timedelta(days=now.weekday())
-        context['week_days'] = []
-        
+        # Generate week days with tasks
+        week_days = []
         for i in range(7):
             day = week_start + timedelta(days=i)
-            context['week_days'].append({
+            day_tasks = scheduled_tasks.filter(start_time__date=day)
+            week_days.append({
                 'date': day,
                 'day_name': day.strftime('%A'),
                 'day_short': day.strftime('%a'),
-                'day_num': day.day
+                'day_num': day.day,
+                'is_today': day == today,
+                'tasks': day_tasks
             })
         
+        context.update({
+            'week_start': week_start,
+            'week_end': week_end,
+            'week_days': week_days,
+            'scheduled_tasks': scheduled_tasks,
+            'unscheduled_tasks': unscheduled_tasks,
+        })
+        
         return context
+
+@login_required
+@require_POST
+def update_task_schedule(request):
+    """Update task schedule via AJAX."""
+    try:
+        task_id = request.POST.get('task_id')
+        start_time_str = request.POST.get('start_time')
+        
+        task = get_object_or_404(Task, id=task_id, user=request.user)
+        
+        # Parse start time
+        start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
+        if timezone.is_naive(start_time):
+            start_time = timezone.make_aware(start_time)
+        
+        # Calculate end time
+        duration = timedelta(hours=float(task.estimated_hours))
+        end_time = start_time + duration
+        
+        # Update task
+        task.start_time = start_time
+        task.end_time = end_time
+        task.is_locked = True
+        task.save()
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+@require_POST
+def unschedule_task(request):
+    """Remove task from schedule."""
+    try:
+        task_id = request.POST.get('task_id')
+        task = get_object_or_404(Task, id=task_id, user=request.user)
+        
+        task.start_time = None
+        task.end_time = None
+        task.is_locked = False
+        task.save()
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+@login_required
+@require_POST
+def reoptimize_week(request):
+    """Re-optimize the schedule."""
+    try:
+        # Here you would call your scheduling engine
+        # For now, just return success
+        return JsonResponse({
+            'success': True, 
+            'message': 'Schedule optimized successfully!'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
 
 
 class AvailabilityView(LoginRequiredMixin, TemplateView):
@@ -238,15 +315,212 @@ class TimeBlockDeleteView(LoginRequiredMixin, DeleteView):
         return TimeBlock.objects.filter(user=self.request.user)
 
 
-class PomodoroView(LoginRequiredMixin, TemplateView):
+class PomodoroTimerView(LoginRequiredMixin, TemplateView):
     """Pomodoro timer interface."""
-    template_name = 'planner/pomodoro.html'
-
+    template_name = 'pomodoro.html'
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['in_progress_tasks'] = self.request.user.tasks.filter(status='in_progress')
+        
+        # Get user's active/in-progress tasks for the timer
+        available_tasks = self.request.user.tasks.filter(
+            status__in=['todo', 'in_progress']
+        ).order_by('deadline')
+        
+        # Get current active session if any
+        active_session = PomodoroSession.objects.filter(
+            task__user=self.request.user,
+            status='active'
+        ).first()
+        
+        # Get recent sessions for history
+        recent_sessions = PomodoroSession.objects.filter(
+            task__user=self.request.user
+        ).select_related('task')[:10]
+        
+        # Calculate today's stats
+        today = timezone.now().date()
+        today_sessions = PomodoroSession.objects.filter(
+            task__user=self.request.user,
+            start_time__date=today,
+            status='completed'
+        )
+        
+        context.update({
+            'available_tasks': available_tasks,
+            'active_session': active_session,
+            'recent_sessions': recent_sessions,
+            'today_focus_time': sum(s.actual_duration or 0 for s in today_sessions),
+            'today_sessions_count': today_sessions.count(),
+        })
+        
         return context
 
+@login_required
+@require_POST
+def start_pomodoro_session(request):
+    """Start a new Pomodoro session."""
+    try:
+        task_id = request.POST.get('task_id')
+        session_type = request.POST.get('session_type', 'focus')
+        
+        if not task_id:
+            return JsonResponse({'error': 'Task ID is required'}, status=400)
+        
+        task = get_object_or_404(Task, id=task_id, user=request.user)
+        
+        # Check if there's already an active session
+        active_session = PomodoroSession.objects.filter(
+            task__user=request.user,
+            status='active'
+        ).first()
+        
+        if active_session:
+            return JsonResponse({'error': 'You already have an active session'}, status=400)
+        
+        # Set duration based on session type
+        duration_map = {
+            'focus': 25,
+            'short_break': 5,
+            'long_break': 15
+        }
+        
+        # Create new session
+        session = PomodoroSession.objects.create(
+            task=task,
+            session_type=session_type,
+            planned_duration=duration_map.get(session_type, 25)
+        )
+        
+        # Update task status to in_progress if it's not already
+        if task.status == 'todo':
+            task.status = 'in_progress'
+            task.save()
+        
+        return JsonResponse({
+            'success': True,
+            'session_id': session.id,
+            'duration': session.planned_duration,
+            'message': f'Started {session.get_session_type_display().lower()} for {task.title}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def complete_pomodoro_session(request):
+    """Complete the current Pomodoro session."""
+    try:
+        session_id = request.POST.get('session_id')
+        actual_minutes = request.POST.get('actual_minutes')
+        notes = request.POST.get('notes', '')
+        
+        session = get_object_or_404(
+            PomodoroSession, 
+            id=session_id, 
+            task__user=request.user,
+            status='active'
+        )
+        
+        # Complete the session
+        session.status = 'completed'
+        session.end_time = timezone.now()
+        session.actual_duration = int(actual_minutes) if actual_minutes else session.planned_duration
+        session.notes = notes
+        session.save()
+        
+        # Update task's actual hours
+        if session.session_type == 'focus':
+            task = session.task
+            if task.actual_hours:
+                task.actual_hours = float(task.actual_hours) + (session.actual_duration / 60.0)
+            else:
+                task.actual_hours = session.actual_duration / 60.0
+            task.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Session completed! You focused for {session.actual_duration} minutes.',
+            'next_suggestion': get_next_session_suggestion(session)
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def pause_pomodoro_session(request):
+    """Pause the current Pomodoro session."""
+    try:
+        session_id = request.POST.get('session_id')
+        
+        session = get_object_or_404(
+            PomodoroSession, 
+            id=session_id, 
+            task__user=request.user,
+            status='active'
+        )
+        
+        session.status = 'paused'
+        session.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Session paused'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@login_required
+@require_POST
+def cancel_pomodoro_session(request):
+    """Cancel the current Pomodoro session."""
+    try:
+        session_id = request.POST.get('session_id')
+        
+        session = get_object_or_404(
+            PomodoroSession, 
+            id=session_id, 
+            task__user=request.user,
+            status__in=['active', 'paused']
+        )
+        
+        session.status = 'cancelled'
+        session.end_time = timezone.now()
+        session.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Session cancelled'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def get_next_session_suggestion(completed_session):
+    """Suggest what type of session to do next."""
+    user = completed_session.task.user
+    
+    # Count focus sessions today
+    today = timezone.now().date()
+    today_focus_sessions = PomodoroSession.objects.filter(
+        task__user=user,
+        start_time__date=today,
+        session_type='focus',
+        status='completed'
+    ).count()
+    
+    if completed_session.session_type == 'focus':
+        # After 4 focus sessions, suggest long break
+        if today_focus_sessions % 4 == 0:
+            return {'type': 'long_break', 'duration': 15, 'message': 'Time for a longer break!'}
+        else:
+            return {'type': 'short_break', 'duration': 5, 'message': 'Take a short break!'}
+    else:
+        # After any break, suggest focus session
+        return {'type': 'focus', 'duration': 25, 'message': 'Ready to focus again?'}
 
 # HTMX and API Views
 

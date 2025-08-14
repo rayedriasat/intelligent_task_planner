@@ -35,7 +35,6 @@
                 {% empty %}
                 <div class="text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder"
                     id="todo-empty">
-                    <div class="pointer-events-none select-none">No tasks to do</div>
                 </div>
                 {% endfor %}
             </div>
@@ -53,7 +52,6 @@
                 {% empty %}
                 <div class="text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder"
                     id="progress-empty">
-                    <div class="pointer-events-none select-none">No tasks in progress</div>
                 </div>
                 {% endfor %}
             </div>
@@ -71,7 +69,6 @@
                 {% empty %}
                 <div class="text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder"
                     id="completed-empty">
-                    <div class="pointer-events-none select-none">No completed tasks</div>
                 </div>
                 {% endfor %}
             </div>
@@ -226,7 +223,7 @@
                     const emptyDiv = document.createElement('div');
                     emptyDiv.id = `${status}-empty`;
                     emptyDiv.className = 'text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder';
-                    emptyDiv.innerHTML = `<div class="pointer-events-none select-none">${status === 'todo' ? 'No tasks to do' : status === 'progress' ? 'No tasks in progress' : 'No completed tasks'}</div>`;
+                    emptyDiv.innerHTML = `<div class="pointer-events-none select-none"></div>`;
                     column.appendChild(emptyDiv);
                 }
             } else {

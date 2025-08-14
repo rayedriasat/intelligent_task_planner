@@ -1,0 +1,48 @@
+{% load tz %}
+
+<div class="calendar-task absolute left-1 right-1 rounded-lg shadow-sm border-l-4 
+            {% if task.priority == 4 %}border-l-red-500 bg-red-50 dark:bg-red-900/20
+            {% elif task.priority == 3 %}border-l-orange-500 bg-orange-50 dark:bg-orange-900/20
+            {% elif task.priority == 2 %}border-l-blue-500 bg-blue-50 dark:bg-blue-900/20
+            {% else %}border-l-gray-500 bg-gray-50 dark:bg-gray-900/20
+            {% endif %} z-10 cursor-move hover:shadow-md transition-shadow duration-200"
+     data-task-id="{{ task.id }}"
+     data-task-title="{{ task.title }}"
+     data-estimated-hours="{{ task.estimated_hours }}"
+     style="top: {{ task.start_time|date:'G'|add:0|mul:4 }}rem; height: {{ task.estimated_hours|floatformat:2|mul:4 }}rem; min-height: 2rem;">
+     
+    <div class="p-2 h-full flex flex-col justify-between">
+        <div>
+            <h4 class="font-semibold text-xs text-gray-900 dark:text-white truncate">
+                {{ task.title }}
+            </h4>
+            <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                {{ task.start_time|date:'g:i A' }} - {{ task.end_time|date:'g:i A' }}
+            </p>
+        </div>
+        
+        <div class="flex items-center justify-between mt-2">
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ task.estimated_hours }}h
+            </span>
+            
+            <div class="flex items-center space-x-1">
+                {% if task.is_locked %}
+                    <svg class="w-3 h-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
+                    </svg>
+                {% endif %}
+                
+                <button hx-post="{% url 'planner:unschedule_task' %}" 
+                        hx-vals='{"task_id": "{{ task.id }}"}'
+                        hx-confirm="Remove this task from the schedule?"
+                        class="text-gray-400 hover:text-red-500 transition-colors"
+                        title="Unschedule task">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

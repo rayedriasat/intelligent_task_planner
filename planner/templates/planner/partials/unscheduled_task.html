@@ -1,0 +1,50 @@
+<div class="unscheduled-task bg-gray-50 dark:bg-gray-700 rounded-lg p-3 border border-gray-200 dark:border-gray-600 cursor-move hover:shadow-md transition-shadow duration-200 border-l-4
+            {% if task.priority == 4 %}border-l-red-500
+            {% elif task.priority == 3 %}border-l-orange-500
+            {% elif task.priority == 2 %}border-l-blue-500
+            {% else %}border-l-gray-500
+            {% endif %}"
+     data-task-id="{{ task.id }}"
+     data-task-title="{{ task.title }}"
+     data-estimated-hours="{{ task.estimated_hours }}">
+     
+    <div class="flex items-start justify-between">
+        <div class="flex-1 min-w-0">
+            <h4 class="font-semibold text-sm text-gray-900 dark:text-white truncate">
+                {{ task.title }}
+            </h4>
+            
+            {% if task.description %}
+                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">
+                    {{ task.description|truncatewords:8 }}
+                </p>
+            {% endif %}
+            
+            <div class="flex items-center space-x-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                <div class="flex items-center space-x-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>{{ task.estimated_hours }}h</span>
+                </div>
+                
+                <div class="flex items-center space-x-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                    <span>Due: {{ task.deadline|date:"M j" }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="ml-2 flex items-center space-x-1">
+            <!-- Priority indicator -->
+            <div class="w-2 h-2 rounded-full
+                        {% if task.priority == 4 %}bg-red-500
+                        {% elif task.priority == 3 %}bg-orange-500
+                        {% elif task.priority == 2 %}bg-blue-500
+                        {% else %}bg-gray-500
+                        {% endif %}"></div>
+        </div>
+    </div>
+</div>

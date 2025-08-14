@@ -23,8 +23,10 @@ urlpatterns = [
     
     # Calendar
     path('calendar/', views.CalendarView.as_view(), name='calendar'),
-    path('calendar/reoptimize/', views.reoptimize_schedule, name='reoptimize_schedule'),
-    path('calendar/update-task/', views.update_task_time, name='update_task_time'),
+    path('calendar/update-task/', views.update_task_schedule, name='update_task_schedule'),
+    path('calendar/unschedule/', views.unschedule_task, name='unschedule_task'),
+    path('calendar/reoptimize/', views.reoptimize_week, name='reoptimize_week'),
+
     
     # Time blocks
     path('availability/', views.AvailabilityView.as_view(), name='availability'),
@@ -32,10 +34,12 @@ urlpatterns = [
     path('availability/<int:pk>/delete/', views.TimeBlockDeleteView.as_view(), name='timeblock_delete'),
     
     # Pomodoro
-    path('pomodoro/', views.PomodoroView.as_view(), name='pomodoro'),
-    path('pomodoro/start/', views.start_pomodoro, name='start_pomodoro'),
-    path('pomodoro/complete/', views.complete_pomodoro, name='complete_pomodoro'),
-    
+    path('pomodoro/', views.PomodoroTimerView.as_view(), name='pomodoro'),
+    path('pomodoro/start/', views.start_pomodoro_session, name='start_pomodoro_session'),
+    path('pomodoro/complete/', views.complete_pomodoro_session, name='complete_pomodoro_session'),
+    path('pomodoro/pause/', views.pause_pomodoro_session, name='pause_pomodoro_session'),
+    path('pomodoro/cancel/', views.cancel_pomodoro_session, name='cancel_pomodoro_session'),
+
     # API endpoints for HTMX
     path('api/task-card/<int:pk>/', views.task_card_partial, name='task_card_partial'),
     path('api/unscheduled-tasks/', views.unscheduled_tasks_partial, name='unscheduled_tasks_partial'),

@@ -42,6 +42,36 @@ class Task(models.Model):
     @property
     def is_scheduled(self):
         return self.start_time is not None and self.end_time is not None
+    
+    @property
+    def calendar_top_position(self):
+        """Calculate top position in pixels for calendar display."""
+        if not self.start_time:
+            return 0
+        # Assuming calendar starts at 7 AM, each hour = 80px
+        hour_offset = self.start_time.hour - 7
+        minute_offset = self.start_time.minute
+        return (hour_offset * 80) + (minute_offset * 80 / 60)
+    
+    @property
+    def calendar_height(self):
+        """Calculate height in pixels based on estimated hours."""
+        if not self.estimated_hours:
+            return 60  # minimum height
+        return max(float(self.estimated_hours) * 80, 60)
+    
+    @property
+    def calendar_left_position(self):
+        """Calculate left position for day of week."""
+        if not self.start_time:
+            return 0
+        day_of_week = self.start_time.weekday()  # Monday = 0
+        return f"calc(5rem + {day_of_week} * (100% - 5rem) / 7)"
+    
+    @property
+    def calendar_width(self):
+        """Calculate width for calendar task block."""
+        return "calc((100% - 5rem) / 7 - 4px)"
 
 
 class TimeBlock(models.Model):
@@ -78,22 +108,48 @@ class TimeBlock(models.Model):
         delta = self.end_time - self.start_time
         return delta.total_seconds() / 3600
 
+# Add this new model to your existing models.py
 
 class PomodoroSession(models.Model):
+    """Model for tracking Pomodoro focus sessions."""
+    
+    SESSION_TYPES = [
+        ('focus', 'Focus Session'),
+        ('short_break', 'Short Break'),
+        ('long_break', 'Long Break'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('paused', 'Paused'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
     task = models.ForeignKey(Task, on_delete=models.CASCADE, related_name='pomodoro_sessions')
-    start_time = models.DateTimeField()
-    end_time = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
+    session_type = models.CharField(max_length=20, choices=SESSION_TYPES, default='focus')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    planned_duration = models.IntegerField(default=25)  # Duration in minutes
+    actual_duration = models.IntegerField(null=True, blank=True)  # Actual time spent
+    start_time = models.DateTimeField(auto_now_add=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True, null=True)
+    
     class Meta:
-        indexes = [
-            models.Index(fields=['task']),
-        ]
-
+        ordering = ['-start_time']
+    
     def __str__(self):
-        return f"Pomodoro for {self.task.title} at {self.start_time.strftime('%Y-%m-%d %H:%M')}"
-
+        return f"{self.get_session_type_display()} - {self.task.title}"
+    
     @property
     def duration_minutes(self):
-        delta = self.end_time - self.start_time
-        return delta.total_seconds() / 60
+        """Get actual duration in minutes if completed."""
+        if self.end_time and self.start_time:
+            delta = self.end_time - self.start_time
+            return int(delta.total_seconds() / 60)
+        return None
+    
+    @property
+    def is_active(self):
+        """Check if session is currently active."""
+        return self.status == 'active'
