@@ -1,0 +1,173 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }" 
+      x-init="$watch('darkMode', val => localStorage.setItem('darkMode', val))" 
+      :class="{ 'dark': darkMode }">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Intelligent Task Planner{% endblock %}</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- CSS -->
+    <link href="{% static 'css/style.css' %}" rel="stylesheet">
+    
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    
+    <!-- Alpine.js -->
+    <script defer src="https://unpkg.com/alpinejs@3.14.0/dist/cdn.min.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+    
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-bg-primary dark:bg-dark-bg-primary text-text-primary dark:text-dark-text-primary font-sans">
+    <!-- CSRF Token for JavaScript -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {% csrf_token %}
+    <!-- Top Header -->
+    <header class="glass-card mx-4 mt-4 px-6 py-4 flex justify-between items-center">
+        <div class="flex items-center space-x-4">
+            <h1 class="text-xl font-bold text-primary dark:text-dark-primary">
+                TaskFlow
+            </h1>
+            <nav class="hidden md:flex space-x-6">
+                <a href="{% url 'planner:kanban' %}" 
+                   class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
+                    My Tasks
+                </a>
+                <a href="{% url 'planner:calendar' %}" 
+                   class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
+                    Calendar
+                </a>
+                <a href="{% url 'planner:availability' %}" 
+                   class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
+                    Availability
+                </a>
+            </nav>
+        </div>
+        
+        <div class="flex items-center space-x-4">
+            <!-- Theme Toggle -->
+            <button @click="darkMode = !darkMode" 
+                    class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                </svg>
+                <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                </svg>
+            </button>
+            
+            {% if user.is_authenticated %}
+                <!-- User Menu -->
+                <div class="relative" x-data="{ open: false }">
+                    <button @click="open = !open" 
+                            class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <div class="w-8 h-8 bg-primary dark:bg-dark-primary text-white rounded-full flex items-center justify-center text-sm font-medium">
+                            {{ user.email|slice:":1"|upper }}
+                        </div>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </button>
+                    
+                    <div x-show="open" @click.away="open = false" x-cloak
+                         x-transition:enter="transition ease-out duration-100"
+                         x-transition:enter-start="transform opacity-0 scale-95"
+                         x-transition:enter-end="transform opacity-100 scale-100"
+                         x-transition:leave="transition ease-in duration-75"
+                         x-transition:leave-start="transform opacity-100 scale-100"
+                         x-transition:leave-end="transform opacity-0 scale-95"
+                         class="absolute right-0 mt-2 w-48 solid-card py-2 z-50">
+                        <a href="{% url 'planner:pomodoro' %}" 
+                           class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            Pomodoro Timer
+                        </a>
+                        <div class="border-t border-border dark:border-dark-border my-2"></div>
+                        <a href="{% url 'account_logout' %}" 
+                           class="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                            Sign Out
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <a href="{% url 'account_login' %}" class="btn-primary">Sign In</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Mobile Navigation -->
+    <div class="md:hidden px-4 mt-4">
+        <nav class="solid-card px-4 py-2 flex space-x-4 overflow-x-auto">
+            <a href="{% url 'planner:kanban' %}" 
+               class="whitespace-nowrap text-sm text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
+                My Tasks
+            </a>
+            <a href="{% url 'planner:calendar' %}" 
+               class="whitespace-nowrap text-sm text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
+                Calendar
+            </a>
+            <a href="{% url 'planner:availability' %}" 
+               class="whitespace-nowrap text-sm text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
+                Availability
+            </a>
+        </nav>
+    </div>
+
+    <!-- Messages -->
+    {% if messages %}
+        <div class="mx-4 mt-4 space-y-2" x-data="{ show: true }" x-show="show">
+            {% for message in messages %}
+                <div class="solid-card px-4 py-3 flex items-center justify-between {% if message.tags == 'error' %}border-l-4 border-l-red-500{% elif message.tags == 'success' %}border-l-4 border-l-green-500{% elif message.tags == 'warning' %}border-l-4 border-l-yellow-500{% else %}border-l-4 border-l-blue-500{% endif %}">
+                    <div class="flex items-center">
+                        {% if message.tags == 'success' %}
+                            <svg class="w-5 h-5 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        {% elif message.tags == 'error' %}
+                            <svg class="w-5 h-5 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        {% elif message.tags == 'warning' %}
+                            <svg class="w-5 h-5 text-yellow-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                            </svg>
+                        {% endif %}
+                        <span class="text-sm">{{ message }}</span>
+                    </div>
+                    <button @click="show = false" class="text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary ml-4">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Main Content -->
+    <main class="mx-4 my-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- HTMX Config -->
+    <script>
+        document.body.addEventListener('htmx:configRequest', (event) => {
+            event.detail.headers['X-CSRFToken'] = '{{ csrf_token }}';
+        });
+    </script>
+
+    {% block extra_body %}{% endblock %}
+</body>
+</html>

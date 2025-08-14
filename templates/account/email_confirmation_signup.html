@@ -1,0 +1,30 @@
+{% extends "account/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Verify Your Email" %} - TaskFlow{% endblock %}
+
+{% block auth_subtitle %}Check your inbox{% endblock %}
+
+{% block inner %}
+<div class="text-center">
+    <div class="mb-6">
+        <svg class="w-16 h-16 mx-auto text-primary dark:text-dark-primary mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 7.89a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+        </svg>
+        <h2 class="text-xl font-semibold mb-3">Verify Your Email Address</h2>
+        <p class="text-text-secondary dark:text-dark-text-secondary">
+            We've sent a confirmation link to <strong>{{ user.email }}</strong>. 
+            Please check your email and click the link to activate your account.
+        </p>
+    </div>
+    
+    <div class="space-y-3">
+        <a href="{% url 'account_email' %}" class="btn-secondary w-full py-3 inline-block">
+            Resend Confirmation Email
+        </a>
+        <a href="{% url 'account_login' %}" class="btn-primary w-full py-3 inline-block">
+            Back to Sign In
+        </a>
+    </div>
+</div>
+{% endblock %}

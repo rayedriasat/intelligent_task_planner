@@ -1,0 +1,262 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Form field styling */
+@layer base {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="datetime-local"],
+  input[type="number"],
+  textarea,
+  select {
+    @apply w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg 
+           focus:ring-2 focus:ring-blue-500 focus:border-transparent 
+           bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100
+           transition-colors duration-200;
+  }
+  
+  input[type="checkbox"] {
+    @apply h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded;
+  }
+}
+
+/* Custom component classes */
+@layer components {
+  .glass-card {
+    @apply backdrop-blur-glass bg-white/70 dark:bg-dark-bg-surface/70 
+           border border-white/20 dark:border-dark-border/50 
+           rounded-glass shadow-glass;
+  }
+  
+  .solid-card {
+    @apply bg-bg-surface dark:bg-dark-bg-surface 
+           border border-border dark:border-dark-border 
+           rounded-glass shadow-card;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary/90 text-white 
+           px-4 py-2 rounded-lg font-medium 
+           transition-all duration-200 
+           focus:outline-none focus:ring-2 focus:ring-primary/50
+           cursor-pointer;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 
+           text-gray-700 dark:text-gray-300 
+           px-4 py-2 rounded-lg font-medium 
+           transition-all duration-200 
+           focus:outline-none focus:ring-2 focus:ring-gray-400/50
+           cursor-pointer;
+  }
+  
+  .task-card {
+    @apply solid-card p-4 cursor-grab hover:shadow-lg 
+           transition-all duration-200 ease-out
+           border-l-4;
+  }
+  
+  .task-card-todo {
+    @apply border-l-status-todo;
+  }
+  
+  .task-card-in_progress {
+    @apply border-l-status-progress;
+  }
+  
+  .task-card-completed {
+    @apply border-l-status-completed opacity-75;
+  }
+  
+  .priority-indicator {
+    @apply inline-block w-2 h-2 rounded-full;
+  }
+  
+  .priority-low {
+    @apply bg-priority-low;
+  }
+  
+  .priority-medium {
+    @apply bg-priority-medium;
+  }
+  
+  .priority-high {
+    @apply bg-priority-high;
+  }
+  
+  .priority-urgent {
+    @apply bg-priority-urgent;
+  }
+}
+
+/* Enhanced empty placeholder protection */
+.empty-placeholder {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  position: relative !important;
+  z-index: -1 !important;
+}
+
+/* Smooth sortable ghost */
+.sortable-ghost {
+  opacity: 0.4;
+  background: linear-gradient(135deg, 
+    rgba(74, 144, 226, 0.08) 0%, 
+    rgba(74, 144, 226, 0.04) 100%);
+  border: 2px dashed rgba(74, 144, 226, 0.3);
+  border-radius: 12px;
+  transform: scale(1.01);
+  transition: all 0.15s ease;
+}
+
+.sortable-ghost::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  background: rgba(74, 144, 226, 0.2);
+  border-radius: 50%;
+  animation: ghost-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes ghost-pulse {
+  0%, 100% { 
+    opacity: 0.2; 
+    transform: translate(-50%, -50%) scale(0.8); 
+  }
+  50% { 
+    opacity: 0.4; 
+    transform: translate(-50%, -50%) scale(1.2); 
+  }
+}
+
+.sortable-chosen {
+  cursor: grabbing !important;
+  transform: rotate(1deg) scale(1.02);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+  z-index: 1000;
+  transition: all 0.15s ease;
+}
+
+.sortable-drag {
+  opacity: 0.9;
+  transform: rotate(3deg) scale(1.03);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  z-index: 1000;
+  transition: none;
+}
+
+/* Instant task card transitions */
+.task-card {
+  transition: all 0.15s ease;
+}
+
+.task-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.task-card.is-dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+  z-index: 1000;
+}
+
+/* Smooth dragging state */
+body.dragging-active .empty-placeholder {
+  opacity: 0.3;
+  transform: scale(0.98);
+  transition: all 0.15s ease;
+}
+
+body.dragging-active .task-card:not(.is-dragging) {
+  transition: all 0.15s ease;
+}
+
+/* Remove all flash effects */
+.task-card-todo,
+.task-card-in_progress,
+.task-card-completed {
+  transition: border-color 0.2s ease, opacity 0.2s ease;
+}
+
+/* Prevent text selection during drag */
+.dragging-active {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Smooth button transitions */
+button, a {
+  transition: all 0.15s ease;
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 144, 226, 0.25);
+}
+
+.btn-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Custom animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.slide-in-right {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.slide-in-left {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+/* Dark mode transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+/* Custom scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-100 dark:bg-gray-800 rounded;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-gray-300 dark:bg-gray-600 rounded hover:bg-gray-400 dark:hover:bg-gray-500;
+}

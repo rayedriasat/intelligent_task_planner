@@ -1,0 +1,9 @@
+Django==5.2.4
+mysqlclient==2.2.7
+django-allauth==65.10.0
+django-q2==1.8.0
+httpx==0.28.1
+pytest==8.4.1
+pytest-django==4.11.1
+django-environ==0.11.2
+ruff==0.8.1

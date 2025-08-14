@@ -1,0 +1,30 @@
+{% extends "account/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign Out" %} - TaskFlow{% endblock %}
+
+{% block auth_subtitle %}Come back soon!{% endblock %}
+
+{% block inner %}
+<div class="text-center">
+    <div class="mb-6">
+        <svg class="w-16 h-16 mx-auto text-primary dark:text-dark-primary mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+        </svg>
+        <p class="text-text-secondary dark:text-dark-text-secondary">
+            Are you sure you want to sign out?
+        </p>
+    </div>
+    
+    <form method="post" action="{% url 'account_logout' %}" class="space-y-4">
+        {% csrf_token %}
+        <button type="submit" class="btn-primary w-full py-3">
+            Yes, Sign Out
+        </button>
+    </form>
+    
+    <a href="{% url 'planner:dashboard' %}" class="btn-secondary w-full py-3 mt-3 inline-block">
+        Cancel
+    </a>
+</div>
+{% endblock %}

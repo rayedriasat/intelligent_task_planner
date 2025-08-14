@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+
+{% block title %}My Tasks - Task Planner{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<!-- Add confetti library -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-2xl font-bold">My Tasks</h1>
+        <button onclick="document.getElementById('taskModal').classList.remove('hidden')" class="btn-primary">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Task
+        </button>
+    </div>
+
+    <!-- Kanban Board -->
+    <div class="grid md:grid-cols-3 gap-6">
+        <!-- To Do Column -->
+        <div class="solid-card p-6">
+            <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <div class="w-3 h-3 bg-status-todo rounded-full mr-2"></div>
+                To Do (<span id="todo-count">{{ todo_tasks.count }}</span>)
+            </h2>
+            <div class="space-y-3 min-h-32" id="todo-column" data-status="todo">
+                {% for task in todo_tasks %}
+                {% include 'planner/partials/task_card.html' %}
+                {% empty %}
+                <div class="text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder"
+                    id="todo-empty">
+                    <div class="pointer-events-none select-none">No tasks to do</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- In Progress Column -->
+        <div class="solid-card p-6">
+            <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <div class="w-3 h-3 bg-status-progress rounded-full mr-2"></div>
+                In Progress (<span id="progress-count">{{ in_progress_tasks.count }}</span>)
+            </h2>
+            <div class="space-y-3 min-h-32" id="progress-column" data-status="in_progress">
+                {% for task in in_progress_tasks %}
+                {% include 'planner/partials/task_card.html' %}
+                {% empty %}
+                <div class="text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder"
+                    id="progress-empty">
+                    <div class="pointer-events-none select-none">No tasks in progress</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Completed Column -->
+        <div class="solid-card p-6">
+            <h2 class="text-lg font-semibold mb-4 flex items-center">
+                <div class="w-3 h-3 bg-status-completed rounded-full mr-2"></div>
+                Completed (<span id="completed-count">{{ completed_tasks.count }}</span>)
+            </h2>
+            <div class="space-y-3 min-h-32" id="completed-column" data-status="completed">
+                {% for task in completed_tasks %}
+                {% include 'planner/partials/task_card.html' %}
+                {% empty %}
+                <div class="text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder"
+                    id="completed-empty">
+                    <div class="pointer-events-none select-none">No completed tasks</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Task Creation Modal -->
+<div id="taskModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="solid-card p-8 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-6">
+            <h3 class="text-xl font-semibold">Create New Task</h3>
+            <button onclick="document.getElementById('taskModal').classList.add('hidden')"
+                class="text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <form action="{% url 'planner:task_create' %}" method="post" class="space-y-4">
+            {% csrf_token %}
+
+            <div>
+                <label for="{{ task_form.title.id_for_label }}" class="block text-sm font-medium mb-1">Title</label>
+                {{ task_form.title }}
+            </div>
+
+            <div>
+                <label for="{{ task_form.description.id_for_label }}"
+                    class="block text-sm font-medium mb-1">Description</label>
+                {{ task_form.description }}
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="{{ task_form.deadline.id_for_label }}"
+                        class="block text-sm font-medium mb-1">Deadline</label>
+                    {{ task_form.deadline }}
+                </div>
+                <div>
+                    <label for="{{ task_form.priority.id_for_label }}"
+                        class="block text-sm font-medium mb-1">Priority</label>
+                    {{ task_form.priority }}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="{{ task_form.estimated_hours.id_for_label }}" class="block text-sm font-medium mb-1">
+                        Estimated Hours
+                        <span class="text-xs text-gray-500">(e.g., 2.5)</span>
+                    </label>
+                    {{ task_form.estimated_hours }}
+                    {% if task_form.estimated_hours.help_text %}
+                    <p class="text-xs text-gray-500 mt-1">{{ task_form.estimated_hours.help_text }}</p>
+                    {% endif %}
+                    {% if task_form.estimated_hours.errors %}
+                    <div class="text-red-500 text-xs mt-1">
+                        {% for error in task_form.estimated_hours.errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+                <div>
+                    <label for="{{ task_form.min_block_size.id_for_label }}" class="block text-sm font-medium mb-1">
+                        Min Block Size
+                        <span class="text-xs text-gray-500">(e.g., 0.5)</span>
+                    </label>
+                    {{ task_form.min_block_size }}
+                    {% if task_form.min_block_size.help_text %}
+                    <p class="text-xs text-gray-500 mt-1">{{ task_form.min_block_size.help_text }}</p>
+                    {% endif %}
+                    {% if task_form.min_block_size.errors %}
+                    <div class="text-red-500 text-xs mt-1">
+                        {% for error in task_form.min_block_size.errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+
+            <div class="flex space-x-3 pt-4">
+                <button type="submit" class="btn-primary flex-1">Create Task</button>
+                <button type="button" onclick="document.getElementById('taskModal').classList.add('hidden')"
+                    class="btn-secondary flex-1">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Enhanced confetti function
+    function triggerConfetti() {
+        const duration = 3000;
+        const animationEnd = Date.now() + duration;
+        const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+        function randomInRange(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        confetti({
+            ...defaults,
+            particleCount: 150,
+            spread: 100,
+            origin: { x: 0.5, y: 0.4 },
+            colors: ['#4A90E2', '#28A745', '#FFC107', '#FF6B35', '#DC3545', '#6f42c1', '#20c997']
+        });
+
+        const interval = setInterval(function () {
+            const timeLeft = animationEnd - Date.now();
+            if (timeLeft <= 0) {
+                return clearInterval(interval);
+            }
+
+            const particleCount = 50 * (timeLeft / duration);
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+                colors: ['#4A90E2', '#28A745', '#FFC107']
+            });
+
+            confetti({
+                ...defaults,
+                particleCount,
+                origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+                colors: ['#FF6B35', '#DC3545', '#6f42c1']
+            });
+        }, 250);
+    }
+
+    // Optimistic UI updates
+    function updateColumnCounts() {
+        document.getElementById('todo-count').textContent = document.getElementById('todo-column').querySelectorAll('.task-card').length;
+        document.getElementById('progress-count').textContent = document.getElementById('progress-column').querySelectorAll('.task-card').length;
+        document.getElementById('completed-count').textContent = document.getElementById('completed-column').querySelectorAll('.task-card').length;
+    }
+
+    function updateEmptyStates() {
+        ['todo', 'progress', 'completed'].forEach(status => {
+            const column = document.getElementById(`${status}-column`);
+            const emptyState = document.getElementById(`${status}-empty`);
+            const taskCards = column.querySelectorAll('.task-card');
+
+            if (taskCards.length === 0) {
+                if (!emptyState) {
+                    const emptyDiv = document.createElement('div');
+                    emptyDiv.id = `${status}-empty`;
+                    emptyDiv.className = 'text-text-secondary dark:text-dark-text-secondary text-sm text-center py-8 empty-placeholder';
+                    emptyDiv.innerHTML = `<div class="pointer-events-none select-none">${status === 'todo' ? 'No tasks to do' : status === 'progress' ? 'No tasks in progress' : 'No completed tasks'}</div>`;
+                    column.appendChild(emptyDiv);
+                }
+            } else {
+                if (emptyState) {
+                    emptyState.remove();
+                }
+            }
+        });
+    }
+
+    function updateTaskCardStatus(taskCard, newStatus) {
+        // Remove old status class
+        taskCard.classList.remove('task-card-todo', 'task-card-in_progress', 'task-card-completed');
+        // Add new status class
+        taskCard.classList.add(`task-card-${newStatus}`);
+
+        // Update action button
+        const actionButton = taskCard.querySelector('button[onclick*="updateTaskStatusWithConfetti"]');
+        if (actionButton) {
+            const taskId = taskCard.dataset.taskId;
+            let nextStatus, buttonText;
+
+            if (newStatus === 'todo') {
+                nextStatus = 'in_progress';
+                buttonText = 'Start';
+            } else if (newStatus === 'in_progress') {
+                nextStatus = 'completed';
+                buttonText = 'Complete';
+            } else {
+                nextStatus = 'todo';
+                buttonText = 'Reopen';
+            }
+
+            actionButton.setAttribute('onclick', `updateTaskStatusWithConfetti(${taskId}, '${nextStatus}')`);
+            actionButton.textContent = buttonText;
+        }
+    }
+
+    // Queue for pending server updates
+    let pendingUpdates = new Set();
+
+    function updateTaskStatusOptimistic(taskId, newStatus, taskElement) {
+        // Add to pending queue
+        pendingUpdates.add(taskId);
+
+        // Immediate UI update
+        updateTaskCardStatus(taskElement, newStatus);
+
+        // Trigger confetti for completion
+        if (newStatus === 'completed') {
+            triggerConfetti();
+        }
+
+        // Update counts and empty states
+        updateColumnCounts();
+        updateEmptyStates();
+
+        // Send to server in background
+        fetch('{% url "planner:update_task_status" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: `task_id=${taskId}&status=${newStatus}`
+        })
+            .then(response => {
+                pendingUpdates.delete(taskId);
+                if (!response.ok) {
+                    // Revert UI changes on error
+                    console.error('Failed to update task status, reverting...');
+                    // In a real implementation, you'd revert the UI changes here
+                }
+            })
+            .catch(error => {
+                pendingUpdates.delete(taskId);
+                console.error('Error updating task status:', error);
+                // In a real implementation, you'd revert the UI changes here
+            });
+    }
+
+    // Global variable to store sortable instances
+    let sortableInstances = [];
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Clear any existing instances
+        sortableInstances.forEach(instance => instance.destroy());
+        sortableInstances = [];
+
+        // Initialize sortable for each column
+        const columns = ['todo-column', 'progress-column', 'completed-column'];
+
+        columns.forEach(columnId => {
+            const column = document.getElementById(columnId);
+            if (column) {
+                const sortable = new Sortable(column, {
+                    group: {
+                        name: 'kanban',
+                        pull: true,
+                        put: true
+                    },
+                    animation: 150,
+                    easing: "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+
+                    // Visual feedback
+                    ghostClass: 'sortable-ghost',
+                    chosenClass: 'sortable-chosen',
+                    dragClass: 'sortable-drag',
+
+                    // Only allow dragging of task cards
+                    draggable: '.task-card',
+                    filter: '.empty-placeholder',
+
+                    // Prevent moving empty placeholders
+                    onMove: function (evt) {
+                        return !evt.related.classList.contains('empty-placeholder');
+                    },
+
+                    onStart: function (evt) {
+                        evt.item.classList.add('is-dragging');
+                        document.body.classList.add('dragging-active');
+                    },
+
+                    onEnd: function (evt) {
+                        evt.item.classList.remove('is-dragging');
+                        document.body.classList.remove('dragging-active');
+
+                        const taskId = evt.item.dataset.taskId;
+                        const newStatus = evt.to.dataset.status;
+                        const oldStatus = evt.from.dataset.status;
+
+                        if (taskId && newStatus && newStatus !== oldStatus) {
+                            // Immediate optimistic update
+                            updateTaskStatusOptimistic(taskId, newStatus, evt.item);
+                        }
+                    }
+                });
+
+                sortableInstances.push(sortable);
+            }
+        });
+    });
+
+    // Updated function for button clicks
+    function updateTaskStatusWithConfetti(taskId, newStatus) {
+        const taskCard = document.getElementById(`task-${taskId}`);
+        if (taskCard) {
+            // Find the target column
+            const targetColumn = document.getElementById(
+                newStatus === 'todo' ? 'todo-column' :
+                    newStatus === 'in_progress' ? 'progress-column' :
+                        'completed-column'
+            );
+
+            // Move the card to the target column
+            targetColumn.appendChild(taskCard);
+
+            // Update optimistically
+            updateTaskStatusOptimistic(taskId, newStatus, taskCard);
+        }
+    }
+
+    // Make functions globally available
+    window.triggerConfetti = triggerConfetti;
+    window.updateTaskStatusWithConfetti = updateTaskStatusWithConfetti;
+</script>
+{% endblock %}

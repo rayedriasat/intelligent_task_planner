@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Quick Start - Task Planner{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="glass-card p-12 text-center">
+        <h1 class="text-3xl font-bold mb-6">Welcome! Let's get started</h1>
+        <p class="text-text-secondary dark:text-dark-text-secondary mb-8">
+            What's your most urgent task? We'll schedule it right away to show you how TaskFlow works.
+        </p>
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="text-left">
+                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium mb-2">
+                    Task Title
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div class="text-red-500 text-sm mt-1">{{ form.title.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <div class="text-left">
+                <label for="{{ form.deadline.id_for_label }}" class="block text-sm font-medium mb-2">
+                    When is it due?
+                </label>
+                {{ form.deadline }}
+                {% if form.deadline.errors %}
+                    <div class="text-red-500 text-sm mt-1">{{ form.deadline.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <div class="text-left">
+                <label for="{{ form.estimated_hours.id_for_label }}" class="block text-sm font-medium mb-2">
+                    How many hours will it take?
+                </label>
+                {{ form.estimated_hours }}
+                {% if form.estimated_hours.errors %}
+                    <div class="text-red-500 text-sm mt-1">{{ form.estimated_hours.errors.0 }}</div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn-primary w-full py-3 text-lg">
+                Schedule My Task
+            </button>
+        </form>
+
+        <p class="text-sm text-text-secondary dark:text-dark-text-secondary mt-6">
+            Don't worry - we've created some default availability for you. You can customize it later.
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends "account/base.html" %}
+{% load i18n %}
+{% load account socialaccount %}
+
+{% block title %}{% trans "Sign In" %} - TaskFlow{% endblock %}
+
+{% block auth_subtitle %}Sign in to your account{% endblock %}
+
+{% block inner %}
+<form method="post" action="{% url 'account_login' %}" class="space-y-6">
+    {% csrf_token %}
+    
+    <div>
+        <label for="{{ form.login.id_for_label }}" class="block text-sm font-medium mb-2">
+            Email Address
+        </label>
+        {{ form.login }}
+        {% if form.login.errors %}
+            <div class="text-red-500 text-sm mt-1">
+                {{ form.login.errors.0 }}
+            </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium mb-2">
+            Password
+        </label>
+        {{ form.password }}
+        {% if form.password.errors %}
+            <div class="text-red-500 text-sm mt-1">
+                {{ form.password.errors.0 }}
+            </div>
+        {% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <div class="text-red-800 dark:text-red-400 text-sm">
+                {{ form.non_field_errors.0 }}
+            </div>
+        </div>
+    {% endif %}
+
+    <div class="flex items-center justify-between">
+        <div class="flex items-center">
+            {{ form.remember }}
+            <label for="{{ form.remember.id_for_label }}" class="ml-2 text-sm text-text-secondary dark:text-dark-text-secondary">
+                Remember me
+            </label>
+        </div>
+        
+        <a href="{% url 'account_reset_password' %}" class="text-sm text-primary dark:text-dark-primary hover:underline">
+            Forgot password?
+        </a>
+    </div>
+
+    <button type="submit" class="btn-primary w-full py-3">
+        Sign In
+    </button>
+</form>
+
+<div class="mt-6 text-center">
+    <p class="text-sm text-text-secondary dark:text-dark-text-secondary">
+        Don't have an account?
+        <a href="{% url 'account_signup' %}" class="text-primary dark:text-dark-primary hover:underline">
+            Sign up
+        </a>
+    </p>
+</div>
+{% endblock %}

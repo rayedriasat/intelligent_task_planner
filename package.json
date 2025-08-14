@@ -1,0 +1,13 @@
+{
+  "name": "intelligent-task-planner",
+  "version": "1.0.0",
+  "description": "Task planner frontend build tools",
+  "scripts": {
+    "build-css": "tailwindcss -i ./static/css/input.css -o ./static/css/style.css --watch",
+    "build-css-prod": "tailwindcss -i ./static/css/input.css -o ./static/css/style.css --minify"
+  },
+  "devDependencies": {
+    "@tailwindcss/forms": "^0.5.7",
+    "tailwindcss": "^3.4.3"
+  }
+}

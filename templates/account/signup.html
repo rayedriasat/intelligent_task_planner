@@ -1,0 +1,75 @@
+{% extends "account/base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Sign Up" %} - TaskFlow{% endblock %}
+
+{% block auth_subtitle %}Create your free account{% endblock %}
+
+{% block inner %}
+<form method="post" action="{% url 'account_signup' %}" class="space-y-6">
+    {% csrf_token %}
+    
+    <div>
+        <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium mb-2">
+            Email Address
+        </label>
+        {{ form.email }}
+        {% if form.email.errors %}
+            <div class="text-red-500 text-sm mt-1">
+                {{ form.email.errors.0 }}
+            </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium mb-2">
+            Password
+        </label>
+        {{ form.password1 }}
+        {% if form.password1.errors %}
+            <div class="text-red-500 text-sm mt-1">
+                {{ form.password1.errors.0 }}
+            </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium mb-2">
+            Confirm Password
+        </label>
+        {{ form.password2 }}
+        {% if form.password2.errors %}
+            <div class="text-red-500 text-sm mt-1">
+                {{ form.password2.errors.0 }}
+            </div>
+        {% endif %}
+    </div>
+
+    {% if form.non_field_errors %}
+        <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+            <div class="text-red-800 dark:text-red-400 text-sm">
+                {{ form.non_field_errors.0 }}
+            </div>
+        </div>
+    {% endif %}
+
+    <button type="submit" class="btn-primary w-full py-3">
+        Create Account
+    </button>
+</form>
+
+<div class="mt-6 text-center">
+    <p class="text-sm text-text-secondary dark:text-dark-text-secondary">
+        Already have an account?
+        <a href="{% url 'account_login' %}" class="text-primary dark:text-dark-primary hover:underline">
+            Sign in
+        </a>
+    </p>
+</div>
+
+<div class="mt-8 pt-6 border-t border-border dark:border-dark-border">
+    <p class="text-xs text-text-secondary dark:text-dark-text-secondary text-center">
+        By creating an account, you agree to our Terms of Service and Privacy Policy.
+    </p>
+</div>
+{% endblock %}
