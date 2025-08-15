@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'base_animated.html' %}
 
 {% block title %}My Tasks - Task Planner{% endblock %}
 
@@ -14,9 +14,6 @@
     <div class="flex justify-between items-center mb-8">
         <h1 class="text-2xl font-bold">My Tasks</h1>
         <button onclick="document.getElementById('taskModal').classList.remove('hidden')" class="btn-primary">
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-            </svg>
             Add Task
         </button>
     </div>
