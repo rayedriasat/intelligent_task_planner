@@ -25,6 +25,276 @@
     <!-- Custom CSS -->
     <style>
         [x-cloak] { display: none !important; }
+        
+		* {
+			margin: 0;
+			padding: 0;
+			box-sizing: border-box;
+			font-family: "Poppins", sans-serif;
+		}
+
+		/* Apply rounded corners only to interactive elements, not background */
+		button, input, select, textarea, .glass-card, .solid-card, .btn-primary, .btn-secondary {
+			border-radius: 1rem;
+		}
+
+		/* Fixed Background Container */
+		.fixed-background {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100vw;
+			height: 100vh;
+			overflow: hidden;
+			z-index: -2;
+			pointer-events: none;
+		}
+
+		.fixed-background .bg {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			pointer-events: none;
+			opacity: 0.5;
+			filter: brightness(0.9) contrast(0.95);
+			border-radius: 0 !important;
+		}
+
+		/* Background overlay for better text contrast */
+		.fixed-background::before {
+			content: '';
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: linear-gradient(135deg,
+				rgba(248, 250, 252, 0.5) 0%,
+				rgba(241, 245, 249, 0.3) 50%,
+				rgba(226, 232, 240, 0.4) 100%);
+			z-index: 1;
+			pointer-events: none;
+			border-radius: 0 !important;
+		}
+
+		/* Dark mode background overlay */
+		.dark .fixed-background::before {
+			background: linear-gradient(135deg,
+				rgba(15, 15, 35, 0.75) 0%,
+				rgba(26, 27, 58, 0.6) 50%,
+				rgba(22, 33, 62, 0.7) 100%);
+		}
+
+		.fixed-background .trees {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			object-fit: cover;
+			z-index: 3;
+			pointer-events: none;
+			opacity: 0.7;
+			filter: brightness(0.8) contrast(0.9);
+			border-radius: 0 !important;
+		}
+
+		.fixed-background .girl {
+			position: absolute;
+			top: 50%;
+			left: 50%;
+			transform: translate(-50%, -50%) scale(0.65);
+			pointer-events: none;
+			animation: animateGirl 10s linear infinite;
+			opacity: 0.6;
+			filter: brightness(0.9) contrast(0.95);
+			z-index: 2;
+			border-radius: 0 !important;
+		}
+
+		@keyframes animateGirl {
+			0% {
+				transform: translate(-50%, -50%) translateX(calc(100% + 100vw)) scale(0.65);
+			}
+
+			50% {
+				transform: translate(-50%, -50%) translateX(calc(-100% - 100vw)) scale(0.65);
+			}
+
+			50.01% {
+				transform: translate(-50%, -50%) translateX(calc(-100% - 100vw)) rotateY(180deg) scale(0.65);
+			}
+
+			100% {
+				transform: translate(-50%, -50%) translateX(calc(100% + 100vw)) rotateY(180deg) scale(0.65);
+			}
+		}
+
+		.leaves {
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100vw;
+			height: 100vh;
+			overflow: hidden;
+			z-index: 100;
+			pointer-events: none;
+		}
+
+		.leaves .set {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+			top: 0;
+			left: 0;
+			pointer-events: none;
+		}
+
+		.leaves .set div {
+			position: absolute;
+			display: block;
+		}
+
+		.leaves .set div:nth-child(1) {
+			left: 20%;
+			animation: animate 20s linear infinite;
+		}
+
+		.leaves .set div:nth-child(2) {
+			left: 50%;
+			animation: animate 14s linear infinite;
+		}
+
+		.leaves .set div:nth-child(3) {
+			left: 70%;
+			animation: animate 12s linear infinite;
+		}
+
+		.leaves .set div:nth-child(4) {
+			left: 5%;
+			animation: animate 15s linear infinite;
+		}
+
+		.leaves .set div:nth-child(5) {
+			left: 85%;
+			animation: animate 18s linear infinite;
+		}
+
+		.leaves .set div:nth-child(6) {
+			left: 90%;
+			animation: animate 12s linear infinite;
+		}
+
+		.leaves .set div:nth-child(7) {
+			left: 15%;
+			animation: animate 14s linear infinite;
+		}
+
+		.leaves .set div:nth-child(8) {
+			left: 60%;
+			animation: animate 15s linear infinite;
+		}
+
+		@keyframes animate {
+			0% {
+				opacity: 0;
+				top: -10%;
+				transform: translateX(20px) rotate(0deg);
+			}
+
+			10% {
+				opacity: 1;
+			}
+
+			20% {
+				transform: translateX(-20px) rotate(45deg);
+			}
+
+			40% {
+				transform: translateX(-20px) rotate(90deg);
+			}
+
+			60% {
+				transform: translateX(20px) rotate(180deg);
+			}
+
+			80% {
+				transform: translateX(-20px) rotate(45deg);
+			}
+
+			100% {
+				top: 110%;
+				transform: translateX(20px) rotate(225deg);
+			}
+		}
+
+        .auth-subtitle {
+        color: #c5c5ff !important;
+        text-shadow: 2px 2px 4px rgba(6, 6, 6, 0.8);
+        font-weight: 600;
+        font-size: 1.1rem;
+        text-align: center;
+    }
+
+    /* Responsive Design for Smaller Screens */
+    @media (max-width: 768px) {
+        .fixed-background .girl {
+            transform: translate(-50%, -50%) scale(0.4);
+        }
+
+        @keyframes animateGirl {
+            0% {
+                transform: translate(-50%, -50%) translateX(calc(100% + 100vw)) scale(0.4);
+            }
+
+            50% {
+                transform: translate(-50%, -50%) translateX(calc(-100% - 100vw)) scale(0.4);
+            }
+
+            50.01% {
+                transform: translate(-50%, -50%) translateX(calc(-100% - 100vw)) rotateY(180deg) scale(0.4);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) translateX(calc(100% + 100vw)) rotateY(180deg) scale(0.4);
+            }
+        }
+
+        .leaves .set div {
+            opacity: 0.7;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .fixed-background .girl {
+            transform: translate(-50%, -50%) scale(0.3);
+        }
+
+        @keyframes animateGirl {
+            0% {
+                transform: translate(-50%, -50%) translateX(calc(100% + 100vw)) scale(0.3);
+            }
+
+            50% {
+                transform: translate(-50%, -50%) translateX(calc(-100% - 100vw)) scale(0.3);
+            }
+
+            50.01% {
+                transform: translate(-50%, -50%) translateX(calc(-100% - 100vw)) rotateY(180deg) scale(0.3);
+            }
+
+            100% {
+                transform: translate(-50%, -50%) translateX(calc(100% + 100vw)) rotateY(180deg) scale(0.3);
+            }
+        }
+
+        .leaves .set div {
+            opacity: 0.5;
+        }
+    }
     </style>
     
     {% block extra_head %}{% endblock %}
@@ -34,7 +304,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     {% csrf_token %}
     <!-- Top Header -->
-    <header class="glass-card mx-4 mt-4 px-6 py-4 flex justify-between items-center">
+    <header class="glass-card mx-4 mt-4 px-6 py-4 flex justify-between items-center relative z-20">
         <div class="flex items-center space-x-4">
             <h1 class="text-xl font-bold text-primary dark:text-dark-primary">
                 TaskFlow
@@ -71,7 +341,7 @@
             
             {% if user.is_authenticated %}
                 <!-- User Menu -->
-                <div class="relative" x-data="{ open: false }">
+                <div class="relative user-dropdown" x-data="{ open: false }">
                     <button @click="open = !open" 
                             class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                         <div class="w-8 h-8 bg-primary dark:bg-dark-primary text-white rounded-full flex items-center justify-center text-sm font-medium">
@@ -89,7 +359,8 @@
                          x-transition:leave="transition ease-in duration-75"
                          x-transition:leave-start="transform opacity-100 scale-100"
                          x-transition:leave-end="transform opacity-0 scale-95"
-                         class="absolute right-0 mt-2 w-48 solid-card py-2 z-50">
+                         class="absolute right-0 mt-2 w-48 solid-card py-2"
+                         style="z-index: 99999 !important; position: absolute !important;">
                         <a href="{% url 'planner:pomodoro' %}" 
                            class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                             Pomodoro Timer
@@ -156,8 +427,29 @@
         </div>
     {% endif %}
 
+    <!-- Fixed Animated Background -->
+    <div class="fixed-background">
+        <img src="{% static 'images/bg.jpg' %}" class="bg">
+        <img src="{% static 'images/girl.png' %}" class="girl">
+        <img src="{% static 'images/trees.png' %}" class="trees">
+    </div>
+
+    <!-- Falling Leaves Animation (on top) -->
+    <div class="leaves">
+        <div class="set">
+            <div><img src="{% static 'images/leaf_01.png' %}"></div>
+            <div><img src="{% static 'images/leaf_02.png' %}"></div>
+            <div><img src="{% static 'images/leaf_03.png' %}"></div>
+            <div><img src="{% static 'images/leaf_04.png' %}"></div>
+            <div><img src="{% static 'images/leaf_01.png' %}"></div>
+            <div><img src="{% static 'images/leaf_02.png' %}"></div>
+            <div><img src="{% static 'images/leaf_03.png' %}"></div>
+            <div><img src="{% static 'images/leaf_04.png' %}"></div>
+        </div>
+    </div>
+
     <!-- Main Content -->
-    <main class="mx-4 my-8">
+    <main class="mx-4 my-8 relative z-10" style="z-index: 10 !important;">
         {% block content %}{% endblock %}
     </main>
 

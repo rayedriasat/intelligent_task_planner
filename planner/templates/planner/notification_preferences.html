@@ -1,0 +1,248 @@
+{% extends 'base.html' %}
+
+{% block title %}Notification Preferences - TaskFlow{% endblock %}
+
+{% block content %}
+<div class="h-full p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Notification Preferences</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-1">
+                Configure how and when you want to receive task reminders and alerts
+            </p>
+        </div>
+        
+        <!-- Test Notification Button -->
+        <button onclick="testNotification()" 
+                class="bg-primary hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium transition-colors">
+            Test Notifications
+        </button>
+    </div>
+
+    <!-- Notification Settings Form -->
+    <div class="max-w-4xl">
+        <form method="post" class="space-y-8">
+            {% csrf_token %}
+            
+            <!-- Global Settings -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Global Settings</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="{{ form.email_notifications_enabled.id_for_label }}" 
+                               name="{{ form.email_notifications_enabled.name }}" 
+                               {% if form.email_notifications_enabled.value %}checked{% endif %}
+                               class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="{{ form.email_notifications_enabled.id_for_label }}" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                            Enable Email Notifications
+                        </label>
+                    </div>
+                    <div class="flex items-center">
+                        <input type="checkbox" id="{{ form.browser_notifications_enabled.id_for_label }}" 
+                               name="{{ form.browser_notifications_enabled.name }}" 
+                               {% if form.browser_notifications_enabled.value %}checked{% endif %}
+                               class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="{{ form.browser_notifications_enabled.id_for_label }}" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                            Enable Browser Notifications
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Reminders -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">📅 Task Reminders</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">Get notified before your scheduled tasks start</p>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="{{ form.task_reminder_enabled.id_for_label }}" 
+                               name="{{ form.task_reminder_enabled.name }}" 
+                               {% if form.task_reminder_enabled.value %}checked{% endif %}
+                               class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="{{ form.task_reminder_enabled.id_for_label }}" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                            Enable task start reminders
+                        </label>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.task_reminder_minutes.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Remind me (minutes before)
+                            </label>
+                            <input type="number" id="{{ form.task_reminder_minutes.id_for_label }}" 
+                                   name="{{ form.task_reminder_minutes.name }}" 
+                                   value="{{ form.task_reminder_minutes.value|default:60 }}"
+                                   min="5" max="1440"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white">
+                        </div>
+                        
+                        <div>
+                            <label for="{{ form.task_reminder_method.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                How to notify
+                            </label>
+                            <select id="{{ form.task_reminder_method.id_for_label }}" 
+                                    name="{{ form.task_reminder_method.name }}"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white">
+                                <option value="browser" {% if form.task_reminder_method.value == 'browser' %}selected{% endif %}>Browser Only</option>
+                                <option value="email" {% if form.task_reminder_method.value == 'email' %}selected{% endif %}>Email Only</option>
+                                <option value="both" {% if form.task_reminder_method.value == 'both' %}selected{% endif %}>Browser + Email</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Deadline Warnings -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">⚠️ Deadline Warnings</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">Get warned about approaching task deadlines</p>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="{{ form.deadline_warning_enabled.id_for_label }}" 
+                               name="{{ form.deadline_warning_enabled.name }}" 
+                               {% if form.deadline_warning_enabled.value %}checked{% endif %}
+                               class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="{{ form.deadline_warning_enabled.id_for_label }}" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                            Enable deadline warnings
+                        </label>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label for="{{ form.deadline_warning_hours.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Warn me (hours before)
+                            </label>
+                            <input type="number" id="{{ form.deadline_warning_hours.id_for_label }}" 
+                                   name="{{ form.deadline_warning_hours.name }}" 
+                                   value="{{ form.deadline_warning_hours.value|default:24 }}"
+                                   min="1" max="168"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white">
+                        </div>
+                        
+                        <div>
+                            <label for="{{ form.deadline_warning_method.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                How to notify
+                            </label>
+                            <select id="{{ form.deadline_warning_method.id_for_label }}" 
+                                    name="{{ form.deadline_warning_method.name }}"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white">
+                                <option value="browser" {% if form.deadline_warning_method.value == 'browser' %}selected{% endif %}>Browser Only</option>
+                                <option value="email" {% if form.deadline_warning_method.value == 'email' %}selected{% endif %}>Email Only</option>
+                                <option value="both" {% if form.deadline_warning_method.value == 'both' %}selected{% endif %}>Browser + Email</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Optimization -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">🔄 Schedule Optimization</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">Get notified when schedule optimizations complete</p>
+                
+                <div class="space-y-4">
+                    <div class="flex items-center">
+                        <input type="checkbox" id="{{ form.schedule_optimization_enabled.id_for_label }}" 
+                               name="{{ form.schedule_optimization_enabled.name }}" 
+                               {% if form.schedule_optimization_enabled.value %}checked{% endif %}
+                               class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                        <label for="{{ form.schedule_optimization_enabled.id_for_label }}" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                            Enable optimization notifications
+                        </label>
+                    </div>
+                    
+                    <div>
+                        <label for="{{ form.schedule_optimization_method.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            How to notify
+                        </label>
+                        <select id="{{ form.schedule_optimization_method.id_for_label }}" 
+                                name="{{ form.schedule_optimization_method.name }}"
+                                class="w-full md:w-1/2 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white">
+                            <option value="browser" {% if form.schedule_optimization_method.value == 'browser' %}selected{% endif %}>Browser Only</option>
+                            <option value="email" {% if form.schedule_optimization_method.value == 'email' %}selected{% endif %}>Email Only</option>
+                            <option value="both" {% if form.schedule_optimization_method.value == 'both' %}selected{% endif %}>Browser + Email</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pomodoro Breaks -->
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">🍅 Pomodoro Breaks</h2>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">Get reminded to take breaks during focus sessions</p>
+                
+                <div class="flex items-center">
+                    <input type="checkbox" id="{{ form.pomodoro_break_enabled.id_for_label }}" 
+                           name="{{ form.pomodoro_break_enabled.name }}" 
+                           {% if form.pomodoro_break_enabled.value %}checked{% endif %}
+                           class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded">
+                    <label for="{{ form.pomodoro_break_enabled.id_for_label }}" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                        Enable Pomodoro break reminders
+                    </label>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end space-x-4">
+                <a href="{% url 'planner:dashboard' %}" 
+                   class="px-6 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="bg-primary hover:bg-blue-600 text-white px-6 py-2 rounded-lg font-medium transition-colors">
+                    Save Preferences
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function testNotification() {
+    fetch('{% url "planner:test_notification" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast(data.message, 'success');
+        } else {
+            showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('Network error', 'error');
+    });
+}
+
+function showToast(message, type = 'info') {
+    // Create toast notification
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : 
+                   type === 'error' ? 'bg-red-500' : 'bg-blue-500';
+    
+    toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 z-50`;
+    toast.innerHTML = `
+        <div class="flex items-center justify-between">
+            <span>${message}</span>
+            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+}
+</script>
+{% endblock %}

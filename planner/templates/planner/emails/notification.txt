@@ -1,0 +1,22 @@
+📅 TASKFLOW - {{ notification.get_notification_type_display|upper }}
+
+{{ notification.title }}
+
+{{ notification.message }}
+
+{% if task %}
+TASK DETAILS:
+- Title: {{ task.title }}
+{% if task.start_time %}- Scheduled: {{ task.start_time|date:"F j, Y \a\t g:i A" }}
+{% endif %}{% if task.deadline %}- Deadline: {{ task.deadline|date:"F j, Y \a\t g:i A" }}
+{% endif %}- Estimated Time: {{ task.estimated_hours }} hour{{ task.estimated_hours|pluralize }}
+- Priority: {{ task.get_priority_display }}
+{% if task.description %}- Description: {{ task.description }}
+{% endif %}
+{% endif %}
+
+View your full schedule at: {{ request.build_absolute_uri }}{% url 'planner:calendar' %}
+
+---
+You're receiving this notification because you have task reminders enabled in your TaskFlow account.
+To manage your notification preferences, visit: {{ request.build_absolute_uri }}{% url 'account_email' %}

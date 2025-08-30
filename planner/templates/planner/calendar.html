@@ -3,7 +3,7 @@
 {% block title %}Calendar - TaskFlow{% endblock %}
 
 {% block content %}
-<div class="h-full flex flex-col p-6" x-data="calendarApp()" x-init="init()">
+<div class="h-full flex flex-col p-6" x-data="window.calendarData = calendarApp()" x-init="init(); window.calendarApp = $data">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -44,6 +44,25 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                 </svg>
                 <span x-text="isOptimizing ? 'Optimizing...' : 'Re-optimize'"></span>
+            </button>
+            
+            <!-- Get AI Suggestion Button -->
+            <button @click="getAISuggestions()" 
+                    :disabled="aiLoading"
+                    class="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" :class="{ 'animate-spin': aiLoading }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                </svg>
+                <span x-text="aiLoading ? 'Getting AI Suggestions...' : 'Get AI Suggestion'"></span>
+            </button>
+            
+            <!-- Add Urgent Task Button -->
+            <button @click="promptUrgentTask()" 
+                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <span>Urgent Task</span>
             </button>
         </div>
     </div>
@@ -130,46 +149,402 @@
             </div>
         </div>
 
-        <!-- Unscheduled Tasks Sidebar -->
-        <div class="w-80 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+        <!-- Enhanced Unscheduled Tasks Sidebar -->
+        <div class="w-96 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 flex flex-col">
+            <!-- Header with filters -->
             <div class="p-4 border-b border-gray-200 dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Unscheduled Tasks</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                    {{ unscheduled_tasks.count }} tasks need scheduling
-                </p>
-            </div>
-            
-            <div class="flex-1 p-4 space-y-3 overflow-y-auto">
-                {% for task in unscheduled_tasks %}
-                <div class="unscheduled-task"
-                     draggable="true"
-                     data-task-id="{{ task.id }}"
-                     @dragstart="handleTaskDragStart($event, {{ task.id }})">
-                    <div class="flex items-start justify-between">
-                        <div class="flex-1">
-                            <h4 class="font-medium text-gray-900 dark:text-white text-sm">{{ task.title }}</h4>
-                            <div class="flex items-center space-x-3 mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                <span>{{ task.estimated_hours }}h</span>
-                                <span>Due: {{ task.deadline|date:"M j" }}</span>
-                            </div>
-                        </div>
-                        <div class="priority-indicator priority-{{ task.priority }}"></div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Unscheduled Tasks</h3>
+                    <button @click="refreshUnscheduled()" 
+                            class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors">
+                        <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="flex items-center justify-between text-sm">
+                    <span class="text-gray-600 dark:text-gray-400">
+                        <span x-text="filteredTasks.length">{{ unscheduled_tasks.count }}</span> tasks need scheduling
+                    </span>
+                    <div class="flex items-center space-x-2">
+                        <button @click="showFilters = !showFilters" 
+                                class="text-xs px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            Filters
+                        </button>
+                        <button @click="showAnalysis = !showAnalysis" 
+                                class="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors">
+                            Analysis
+                        </button>
                     </div>
                 </div>
-                {% empty %}
-                <div class="text-center py-8 text-gray-400 dark:text-gray-500">
+                
+                <!-- Filters Panel -->
+                <div x-show="showFilters" x-collapse class="mt-3 space-y-2">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Priority</label>
+                        <select x-model="priorityFilter" @change="applyFilters()" 
+                                class="w-full text-xs border rounded px-2 py-1 dark:bg-gray-700 dark:border-gray-600">
+                            <option value="all">All Priorities</option>
+                            <option value="1">High Priority</option>
+                            <option value="2">Medium Priority</option>
+                            <option value="3">Low Priority</option>
+                            <option value="4">Lowest Priority</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Sort by</label>
+                        <select x-model="sortBy" @change="applyFilters()" 
+                                class="w-full text-xs border rounded px-2 py-1 dark:bg-gray-700 dark:border-gray-600">
+                            <option value="deadline">Deadline</option>
+                            <option value="priority">Priority</option>
+                            <option value="estimated_hours">Duration</option>
+                            <option value="created_at">Date Created</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Analysis Panel -->
+                <div x-show="showAnalysis" x-collapse class="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <div class="text-xs space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Total Hours:</span>
+                            <span class="font-medium" x-text="totalUnscheduledHours + 'h'">0h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Avg Task Size:</span>
+                            <span class="font-medium" x-text="avgTaskSize + 'h'">0h</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">Urgent Tasks:</span>
+                            <span class="font-medium text-red-600" x-text="urgentTasksCount">0</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Tasks List -->
+            <div class="flex-1 p-4 space-y-3 overflow-y-auto">
+                <template x-for="task in filteredTasks" :key="task.id">
+                    <div class="unscheduled-task-enhanced"
+                         draggable="true"
+                         :data-task-id="task.id"
+                         :class="{
+                             'border-red-300 bg-red-50 dark:bg-red-900/20': task.is_urgent,
+                             'border-yellow-300 bg-yellow-50 dark:bg-yellow-900/20': task.priority <= 2 && !task.is_urgent,
+                             'border-gray-300 bg-gray-50 dark:bg-gray-700': task.priority > 2 && !task.is_urgent
+                         }"
+                         @dragstart="handleTaskDragStart($event, task.id)">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <h4 class="font-medium text-gray-900 dark:text-white text-sm" x-text="task.title"></h4>
+                                    <span x-show="task.is_urgent" class="text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-1 rounded">URGENT</span>
+                                </div>
+                                <div class="flex items-center space-x-3 text-xs text-gray-500 dark:text-gray-400">
+                                    <span x-text="task.estimated_hours + 'h'"></span>
+                                    <span x-text="'Due: ' + formatDate(task.deadline)"></span>
+                                    <span x-text="'P' + task.priority" :class="{
+                                        'text-green-600': task.priority === 1,
+                                        'text-yellow-600': task.priority === 2,
+                                        'text-orange-600': task.priority === 3,
+                                        'text-red-600': task.priority === 4
+                                    }"></span>
+                                </div>
+                                <div x-show="task.description" class="mt-1 text-xs text-gray-600 dark:text-gray-400 line-clamp-2" x-text="task.description"></div>
+                            </div>
+                            <div class="flex flex-col items-end space-y-1">
+                                <div class="priority-indicator" :class="'priority-' + task.priority"></div>
+                                <button @click="quickScheduleTask(task.id)" 
+                                        class="text-xs text-blue-600 dark:text-blue-400 hover:underline">
+                                    Quick Schedule
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+                
+                <div x-show="filteredTasks.length === 0" class="text-center py-8 text-gray-400 dark:text-gray-500">
                     <svg class="w-12 h-12 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
-                    <p class="text-sm">All tasks scheduled!</p>
+                    <p class="text-sm" x-text="unscheduledTasks.length === 0 ? 'All tasks scheduled!' : 'No tasks match filters'"></p>
                 </div>
-                {% endfor %}
+            </div>
+            
+            <!-- Quick Actions Footer -->
+            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex space-x-2">
+                    <button @click="scheduleAllUrgent()" 
+                            class="flex-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded transition-colors">
+                        Schedule Urgent
+                    </button>
+                    <button @click="scheduleByPriority()" 
+                            class="flex-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded transition-colors">
+                        Auto Schedule
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
+    <!-- Sacrifice Mode Modal -->
+    <div x-show="sacrificeMode" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+                <div class="p-6">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Sacrifice Mode</h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                No available time slots. Choose which tasks to reschedule to make room for your urgent task.
+                            </p>
+                        </div>
+                        <button @click="cancelSacrificeMode()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Urgent Task Info -->
+                    <div x-show="urgentTask" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold text-red-800 dark:text-red-200 mb-1">Urgent Task</h4>
+                        <p class="text-red-700 dark:text-red-300" x-text="urgentTask?.title"></p>
+                        <p class="text-sm text-red-600 dark:text-red-400 mt-1">
+                            Duration: <span x-text="urgentTask?.estimated_hours + ' hours'"></span>
+                        </p>
+                    </div>
+                    
+                    <!-- Target Time Selection -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Schedule urgent task at:
+                        </label>
+                        <input type="datetime-local" 
+                               x-model="targetDateTime"
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                    </div>
+                    
+                    <!-- Conflicting Tasks -->
+                    <div class="mb-6">
+                        <h4 class="font-semibold text-gray-900 dark:text-white mb-3">Tasks to Reschedule</h4>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                            Select tasks to move back to the unscheduled tasks tray:
+                        </p>
+                        <div class="space-y-2 max-h-60 overflow-y-auto">
+                            <template x-for="task in conflictingTasks" :key="task.id">
+                                <div class="flex items-center p-3 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                                    <input type="checkbox" 
+                                           :id="'sacrifice-' + task.id"
+                                           :value="task.id"
+                                           x-model="selectedSacrifices"
+                                           class="mr-3">
+                                    <label :for="'sacrifice-' + task.id" class="flex-1 cursor-pointer">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h5 class="font-medium text-gray-900 dark:text-white" x-text="task.title"></h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                                    <span x-text="formatDateTime(task.start_time)"></span> - 
+                                                    <span x-text="formatDateTime(task.end_time)"></span>
+                                                    (<span x-text="task.estimated_hours + 'h'"></span>)
+                                                </p>
+                                            </div>
+                                            <div class="flex items-center space-x-2">
+                                                <span class="text-xs px-2 py-1 rounded" 
+                                                      :class="{
+                                                          'bg-green-100 text-green-800': task.priority === 1,
+                                                          'bg-yellow-100 text-yellow-800': task.priority === 2,
+                                                          'bg-orange-100 text-orange-800': task.priority === 3,
+                                                          'bg-red-100 text-red-800': task.priority === 4
+                                                      }"
+                                                      x-text="'P' + task.priority">
+                                                </span>
+                                                <span x-show="task.is_locked" class="text-yellow-600">
+                                                    🔒
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="flex justify-end space-x-3">
+                        <button @click="cancelSacrificeMode()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                            Cancel
+                        </button>
+                        <button @click="executeSacrifice()"
+                                :disabled="!targetDateTime"
+                                class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors">
+                            Schedule Urgent Task
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- AI Suggestions Modal -->
+    <div x-show="showAISuggestions" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                <div class="p-6">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white flex items-center space-x-2">
+                                <svg class="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                </svg>
+                                <span>AI Scheduling Suggestions</span>
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                AI-powered suggestions to optimize your schedule
+                            </p>
+                        </div>
+                        <button @click="closeAISuggestions()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Loading State -->
+                    <div x-show="aiLoading" class="text-center py-8">
+                        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
+                        <p class="mt-4 text-gray-600 dark:text-gray-400">Getting AI suggestions...</p>
+                    </div>
+                    
+                    <!-- Error State -->
+                    <div x-show="aiError && !aiLoading" class="text-center py-8">
+                        <div class="text-red-500 mb-4">
+                            <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Unable to get AI suggestions</h4>
+                        <p class="text-gray-600 dark:text-gray-400" x-text="aiError"></p>
+                        <button @click="getAISuggestions()" class="mt-4 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg">
+                            Try Again
+                        </button>
+                    </div>
+                    
+                    <!-- Success State - AI Suggestions -->
+                    <div x-show="aiSuggestions && aiSuggestions.length > 0 && !aiLoading" class="space-y-6">
+                        <!-- Overall Score and Reasoning -->
+                        <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-2">
+                                <h4 class="font-semibold text-purple-800 dark:text-purple-200">AI Analysis</h4>
+                                <div class="flex items-center space-x-2">
+                                    <span class="text-sm text-purple-600 dark:text-purple-400">Confidence Score:</span>
+                                    <span class="font-bold text-purple-800 dark:text-purple-200" x-text="Math.round(aiOverallScore * 100) + '%'"></span>
+                                </div>
+                            </div>
+                            <p class="text-purple-700 dark:text-purple-300" x-text="aiReasoning"></p>
+                        </div>
+                        
+                        <!-- Suggestions List -->
+                        <div class="space-y-4">
+                            <h4 class="font-semibold text-gray-900 dark:text-white">Suggested Schedule Changes</h4>
+                            <div class="grid gap-4 max-h-96 overflow-y-auto">
+                                <template x-for="suggestion in aiSuggestions" :key="suggestion.task_id">
+                                    <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex-1">
+                                                <h5 class="font-medium text-gray-900 dark:text-white" x-text="suggestion.task_title"></h5>
+                                                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1" x-text="suggestion.task_description"></p>
+                                                
+                                                <div class="mt-3 space-y-2">
+                                                    <div class="flex items-center space-x-4 text-sm">
+                                                        <span class="text-gray-500">Suggested Time:</span>
+                                                        <span class="font-medium text-gray-900 dark:text-white" x-text="formatDateTime(suggestion.suggested_start_time) + ' - ' + formatDateTime(suggestion.suggested_end_time)"></span>
+                                                    </div>
+                                                    <div class="flex items-center space-x-4 text-sm">
+                                                        <span class="text-gray-500">Confidence:</span>
+                                                        <div class="flex items-center space-x-2">
+                                                            <div class="w-16 bg-gray-200 dark:bg-gray-600 rounded-full h-2">
+                                                                <div class="bg-purple-600 h-2 rounded-full" :style="`width: ${suggestion.confidence_score * 100}%`"></div>
+                                                            </div>
+                                                            <span class="font-medium" x-text="Math.round(suggestion.confidence_score * 100) + '%'"></span>
+                                                        </div>
+                                                    </div>
+                                                    <div class="text-sm text-gray-600 dark:text-gray-400">
+                                                        <span class="font-medium">Reasoning:</span> <span x-text="suggestion.reasoning"></span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="flex items-center space-x-2 ml-4">
+                                                <input type="checkbox" 
+                                                       :id="'suggestion-' + suggestion.task_id"
+                                                       :value="suggestion.task_id"
+                                                       x-model="selectedSuggestions"
+                                                       class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
+                                                <label :for="'suggestion-' + suggestion.task_id" class="text-sm text-gray-600 dark:text-gray-400">Accept</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- No Suggestions State -->
+                    <div x-show="aiSuggestions && aiSuggestions.length === 0 && !aiLoading && !aiError" class="text-center py-8">
+                        <div class="text-gray-400 mb-4">
+                            <svg class="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                        <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">All caught up!</h4>
+                        <p class="text-gray-600 dark:text-gray-400">No unscheduled tasks found, or your current schedule is already optimal.</p>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div x-show="aiSuggestions && aiSuggestions.length > 0 && !aiLoading" class="flex justify-between items-center mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <div class="text-sm text-gray-600 dark:text-gray-400">
+                            <span x-text="selectedSuggestions.length"></span> of <span x-text="aiSuggestions.length"></span> suggestions selected
+                        </div>
+                        <div class="flex space-x-3">
+                            <button @click="closeAISuggestions()"
+                                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                                Dismiss
+                            </button>
+                            <button @click="applyAISuggestions()"
+                                    :disabled="selectedSuggestions.length === 0"
+                                    class="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors">
+                                Apply Selected Suggestions
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -404,6 +779,28 @@
     border-color: #92400e;
 }
 
+/* Enhanced unscheduled task styles */
+.unscheduled-task-enhanced {
+    border-radius: 8px;
+    padding: 12px;
+    cursor: move;
+    transition: all 0.15s ease;
+    border: 1px solid;
+    border-left: 4px solid;
+}
+
+.unscheduled-task-enhanced:hover {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
 .priority-indicator {
     width: 8px;
     height: 8px;
@@ -435,9 +832,166 @@
 function calendarApp() {
     return {
         isOptimizing: false,
+        showFilters: false,
+        showAnalysis: false,
+        priorityFilter: 'all',
+        sortBy: 'deadline',
+        unscheduledTasks: [],
+        filteredTasks: [],
+        totalUnscheduledHours: 0,
+        avgTaskSize: 0,
+        urgentTasksCount: 0,
+        
+        // AI Suggestions state
+        aiLoading: false,
+        showAISuggestions: false,
+        aiSuggestions: [],
+        aiOverallScore: 0,
+        aiReasoning: '',
+        aiError: null,
+        selectedSuggestions: [],
+        
+        // Sacrifice mode state
+        sacrificeMode: false,
+        urgentTask: null,
+        conflictingTasks: [],
+        selectedSacrifices: [],
+        targetDateTime: null,
         
         init() {
             console.log('Calendar initialized');
+            this.loadUnscheduledTasks();
+        },
+        
+        loadUnscheduledTasks() {
+            // Load unscheduled tasks data from server
+            const unscheduledData = [
+                {% for task in unscheduled_tasks %}
+                {
+                    id: {{ task.id }},
+                    title: "{{ task.title|escapejs }}",
+                    description: "{{ task.description|default_if_none:""|escapejs }}",
+                    estimated_hours: {{ task.estimated_hours }},
+                    priority: {{ task.priority }},
+                    deadline: "{{ task.deadline|date:'Y-m-d' }}",
+                    created_at: "{{ task.created_at|date:'Y-m-d' }}",
+                    is_urgent: {% if task.deadline|timeuntil|cut:' ' < '2 days' %}true{% else %}false{% endif %}
+                },
+                {% endfor %}
+            ];
+            
+            this.unscheduledTasks = unscheduledData;
+            this.calculateAnalytics();
+            this.applyFilters();
+        },
+        
+        calculateAnalytics() {
+            this.totalUnscheduledHours = this.unscheduledTasks.reduce((sum, task) => sum + parseFloat(task.estimated_hours), 0).toFixed(1);
+            this.avgTaskSize = this.unscheduledTasks.length > 0 ? (this.totalUnscheduledHours / this.unscheduledTasks.length).toFixed(1) : 0;
+            this.urgentTasksCount = this.unscheduledTasks.filter(task => task.is_urgent).length;
+        },
+        
+        applyFilters() {
+            let filtered = [...this.unscheduledTasks];
+            
+            // Apply priority filter
+            if (this.priorityFilter !== 'all') {
+                filtered = filtered.filter(task => task.priority == this.priorityFilter);
+            }
+            
+            // Apply sorting
+            filtered.sort((a, b) => {
+                switch (this.sortBy) {
+                    case 'priority':
+                        return a.priority - b.priority;
+                    case 'estimated_hours':
+                        return parseFloat(b.estimated_hours) - parseFloat(a.estimated_hours);
+                    case 'created_at':
+                        return new Date(b.created_at) - new Date(a.created_at);
+                    case 'deadline':
+                    default:
+                        return new Date(a.deadline) - new Date(b.deadline);
+                }
+            });
+            
+            this.filteredTasks = filtered;
+        },
+        
+        formatDate(dateStr) {
+            const date = new Date(dateStr);
+            const today = new Date();
+            const diffTime = date - today;
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays === 0) return 'Today';
+            if (diffDays === 1) return 'Tomorrow';
+            if (diffDays === -1) return 'Yesterday';
+            if (diffDays < 0) return `${Math.abs(diffDays)} days ago`;
+            if (diffDays <= 7) return `${diffDays} days`;
+            
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        },
+        
+        refreshUnscheduled() {
+            window.location.reload();
+        },
+        
+        quickScheduleTask(taskId) {
+            // Find next available slot and schedule task there
+            fetch('{% url "planner:quick_schedule_task" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `task_id=${taskId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showToast(`Task scheduled for ${data.scheduled_time}!`, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Could not find available time'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showToast('Network error', 'error');
+            });
+        },
+        
+        scheduleAllUrgent() {
+            const urgentTasks = this.unscheduledTasks.filter(task => task.is_urgent);
+            if (urgentTasks.length === 0) {
+                this.showToast('No urgent tasks to schedule', 'info');
+                return;
+            }
+            
+            if (!confirm(`Schedule ${urgentTasks.length} urgent tasks automatically?`)) return;
+            
+            fetch('{% url "planner:schedule_urgent_tasks" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showToast(`${data.scheduled_count} urgent tasks scheduled!`, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            });
+        },
+        
+        scheduleByPriority() {
+            if (!confirm('Automatically schedule all unscheduled tasks by priority?')) return;
+            
+            this.reoptimizeSchedule();
         },
         
         navigateWeek(direction) {
@@ -556,8 +1110,31 @@ function calendarApp() {
                 this.isOptimizing = false;
                 
                 if (data.success) {
-                    this.showToast('Schedule optimized!', 'success');
-                    setTimeout(() => window.location.reload(), 1500);
+                    let message = data.message;
+                    
+                    // Add detailed feedback
+                    if (data.utilization_rate) {
+                        message += ` Utilization: ${data.utilization_rate}%`;
+                    }
+                    
+                    this.showToast(message, 'success');
+                    
+                    // Show undo option if optimization was successful
+                    if (data.can_undo && data.optimization_id) {
+                        setTimeout(() => {
+                            const undoToast = this.showUndoToast(data.optimization_id);
+                        }, 1000);
+                    }
+                    
+                    // Show recommendations if overloaded
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        setTimeout(() => {
+                            const recommendations = data.recommendations.join('\n• ');
+                            alert(`Recommendations:\n• ${recommendations}`);
+                        }, 1500);
+                    }
+                    
+                    setTimeout(() => window.location.reload(), 3000);
                 } else {
                     this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
                 }
@@ -594,8 +1171,273 @@ function calendarApp() {
                 toast.classList.add('translate-x-full');
                 setTimeout(() => toast.remove(), 300);
             }, 5000);
+        },
+        
+        showUndoToast(optimizationId) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            toast.className = 'bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg transform translate-x-full transition-transform duration-300';
+            toast.innerHTML = `
+                <div class="flex items-center justify-between space-x-4">
+                    <span>Optimization complete. Want to undo?</span>
+                    <div class="flex space-x-2">
+                        <button onclick="window.calendarApp.undoOptimization(${optimizationId})" class="bg-white text-yellow-600 px-3 py-1 rounded text-sm font-medium hover:bg-gray-100">
+                            Undo
+                        </button>
+                        <button onclick="this.parentElement.parentElement.parentElement.remove()" class="text-white hover:text-gray-200">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(toast);
+            setTimeout(() => toast.classList.remove('translate-x-full'), 100);
+            
+            // Auto-remove after 30 seconds
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('translate-x-full');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, 30000);
+            
+            return toast;
+        },
+        
+        undoOptimization(optimizationId) {
+            fetch('{% url "planner:undo_optimization" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: `optimization_id=${optimizationId}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showToast('Undo failed: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showToast('Network error during undo', 'error');
+            });
+        },
+        
+        formatDateTime(isoString) {
+            const date = new Date(isoString);
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit'
+            });
+        },
+        
+        createUrgentTask(title, estimatedHours, deadline) {
+            const formData = new FormData();
+            formData.append('title', title);
+            formData.append('description', 'Urgent task created via sacrifice mode');
+            formData.append('estimated_hours', estimatedHours);
+            formData.append('min_block_size', '0.5');
+            formData.append('priority', '1');
+            formData.append('deadline', deadline);
+            formData.append('status', 'todo');
+            
+            fetch('{% url "planner:create_urgent_task" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.scheduled) {
+                        this.showToast('Urgent task scheduled successfully!', 'success');
+                        setTimeout(() => window.location.reload(), 1000);
+                    } else if (data.sacrifice_mode) {
+                        // Trigger sacrifice mode
+                        this.urgentTask = {
+                            id: data.task_id,
+                            title: title,
+                            estimated_hours: estimatedHours
+                        };
+                        this.conflictingTasks = data.conflicting_tasks;
+                        this.selectedSacrifices = [];
+                        this.targetDateTime = new Date().toISOString().slice(0, 16);
+                        this.sacrificeMode = true;
+                    }
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showToast('Network error', 'error');
+            });
+        },
+        
+        cancelSacrificeMode() {
+            this.sacrificeMode = false;
+            this.urgentTask = null;
+            this.conflictingTasks = [];
+            this.selectedSacrifices = [];
+            this.targetDateTime = null;
+        },
+        
+        executeSacrifice() {
+            if (!this.targetDateTime || !this.urgentTask) {
+                this.showToast('Missing required information', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('urgent_task_id', this.urgentTask.id);
+            formData.append('target_datetime', this.targetDateTime + ':00Z');
+            
+            // Add sacrifice task IDs
+            this.selectedSacrifices.forEach(id => {
+                formData.append('sacrifice_task_ids', id);
+            });
+            
+            fetch('{% url "planner:sacrifice_tasks" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    this.cancelSacrificeMode();
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showToast('Network error', 'error');
+            });
+        },
+        
+        promptUrgentTask() {
+            const title = prompt('Enter urgent task title:');
+            if (!title) return;
+            
+            const hours = prompt('Estimated hours:', '1');
+            if (!hours || isNaN(hours)) {
+                this.showToast('Invalid hours entered', 'error');
+                return;
+            }
+            
+            const deadline = prompt('Deadline (YYYY-MM-DD):');
+            if (!deadline) {
+                this.showToast('Deadline is required', 'error');
+                return;
+            }
+            
+            this.createUrgentTask(title, parseFloat(hours), deadline);
+        },
+        
+        // AI Suggestions Functions
+        getAISuggestions() {
+            this.aiLoading = true;
+            this.showAISuggestions = true;
+            this.aiSuggestions = [];
+            this.aiError = null;
+            
+            fetch('{% url "planner:get_ai_scheduling_suggestions" %}', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.aiLoading = false;
+                
+                if (data.success) {
+                    this.aiSuggestions = data.suggestions || [];
+                    this.selectedSuggestions = [];
+                    
+                    if (this.aiSuggestions.length === 0) {
+                        this.aiError = 'No AI suggestions available. Try adding more unscheduled tasks or time blocks.';
+                    }
+                } else {
+                    this.aiError = data.error || 'Failed to get AI suggestions';
+                }
+            })
+            .catch(error => {
+                this.aiLoading = false;
+                this.aiError = 'Network error while getting AI suggestions';
+                console.error('AI Suggestions Error:', error);
+            });
+        },
+        
+        closeAISuggestions() {
+            this.showAISuggestions = false;
+            this.aiSuggestions = [];
+            this.selectedSuggestions = [];
+            this.aiError = null;
+            this.aiLoading = false;
+        },
+        
+        applyAISuggestions() {
+            if (this.selectedSuggestions.length === 0) {
+                this.showToast('Please select at least one suggestion to apply', 'error');
+                return;
+            }
+            
+            const formData = new FormData();
+            this.selectedSuggestions.forEach(suggestionId => {
+                formData.append('selected_suggestions', suggestionId);
+            });
+            
+            fetch('{% url "planner:apply_ai_suggestions" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showToast(`Applied ${data.applied_count} AI suggestions successfully!`, 'success');
+                    this.closeAISuggestions();
+                    setTimeout(() => window.location.reload(), 1500);
+                } else {
+                    this.showToast('Error applying AI suggestions: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error applying AI suggestions:', error);
+                this.showToast('Network error while applying suggestions', 'error');
+            });
+        }
         }
     }
 }
+
+// Make calendarApp globally accessible for undo functionality
+window.calendarApp = null;
+document.addEventListener('alpine:init', () => {
+    Alpine.store('calendar', calendarApp());
+    window.calendarApp = Alpine.store('calendar');
+});
 </script>
 {% endblock %}

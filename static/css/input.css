@@ -8,7 +8,7 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Elegant form field styling with glass effect */
+  /* Elegant form field styling with enhanced glass effect for better visibility */
   input[type="text"],
   input[type="email"],
   input[type="password"],
@@ -16,33 +16,45 @@
   input[type="number"],
   textarea,
   select {
-    @apply w-full px-5 py-4 border border-white/20 dark:border-gray-700/30 rounded-2xl focus:ring-4 focus:ring-primary/20 focus:border-primary/60 bg-white/70 dark:bg-gray-900/50 text-gray-800 dark:text-gray-100 backdrop-blur-xl shadow-lg hover:shadow-xl placeholder:text-gray-500/70 dark:placeholder:text-gray-400/70 transition-all duration-300;
-    backdrop-filter: blur(20px) saturate(1.2);
+    @apply w-full px-5 py-4 border border-gray-300/60 dark:border-gray-600/50 rounded-2xl focus:ring-4 focus:ring-primary/30 focus:border-primary/80 text-gray-900 dark:text-gray-100 shadow-lg hover:shadow-xl placeholder:text-gray-500/80 dark:placeholder:text-gray-400/80 transition-all duration-300;
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(25px) saturate(1.3);
     box-shadow:
-      0 8px 32px rgba(31, 38, 135, 0.15),
+      0 8px 32px rgba(31, 38, 135, 0.2),
+      0 0 0 1px rgba(255, 255, 255, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+
+  .dark input[type="text"],
+  .dark input[type="email"],
+  .dark input[type="password"],
+  .dark input[type="datetime-local"],
+  .dark input[type="number"],
+  .dark textarea,
+  .dark select {
+    background: rgba(15, 15, 35, 0.9);
+    backdrop-filter: blur(30px) saturate(1.4);
+    box-shadow:
+      0 8px 32px rgba(0, 0, 0, 0.3),
       0 0 0 1px rgba(255, 255, 255, 0.1),
-      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
   input[type="checkbox"] {
     @apply h-5 w-5 text-primary focus:ring-primary/30 border-white/30 dark:border-gray-600/30 rounded-lg shadow-lg transition-all duration-200;
   }
 
-  /* Enhanced body with gradient background */
+  /* Enhanced body with gradient background - now transparent to show fixed background */
   body {
     @apply font-sans antialiased text-text-primary dark:text-dark-text-primary;
-    background: linear-gradient(135deg,
-        #f8fafc 0%,
-        #f1f5f9 50%,
-        #e2e8f0 100%);
+    background: transparent;
     font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
   }
 
   .dark body {
-    background: linear-gradient(135deg,
-        #0f0f23 0%,
-        #1a1b3a 50%,
-        #16213e 100%);
+    background: transparent;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   }
 
   /* Stunning animated gradient overlay */
@@ -84,36 +96,60 @@
 
 @layer components {
   [x-show="open"] {
-    z-index: 9999 !important;
+    z-index: 99999 !important;
     position: absolute !important;
   }
 
-  /* Premium Glass Card with enhanced depth */
+  /* Ensure user dropdown appears above everything */
+  .user-dropdown {
+    z-index: 99999 !important;
+    position: relative !important;
+  }
+
+  /* Force dropdown menu to appear above all buttons */
+  .user-dropdown [x-show="open"] {
+    z-index: 99999 !important;
+    position: absolute !important;
+  }
+
+  /* Ensure all buttons in main content have lower z-index than dropdown */
+  main button,
+  main .btn-primary,
+  main .btn-secondary {
+    z-index: 0 !important;
+  }
+
+  /* Header should have higher z-index but lower than dropdown */
+  header {
+    z-index: 20 !important;
+  }
+
+  /* Premium Glass Card with enhanced depth and better visibility */
   .glass-card {
     @apply backdrop-blur-2xl rounded-3xl shadow-2xl border relative;
     background: linear-gradient(135deg,
-        rgba(255, 255, 255, 0.25) 0%,
-        rgba(255, 255, 255, 0.1) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+        rgba(255, 255, 255, 0.85) 0%,
+        rgba(255, 255, 255, 0.75) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.4);
     box-shadow:
-      0 25px 50px -12px rgba(0, 0, 0, 0.25),
-      0 8px 32px rgba(31, 38, 135, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.3),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(25px) saturate(1.3);
+      0 25px 50px -12px rgba(0, 0, 0, 0.35),
+      0 8px 32px rgba(31, 38, 135, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.5),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(30px) saturate(1.4);
     z-index: 10;
   }
 
   .dark .glass-card {
     background: linear-gradient(135deg,
-        rgba(30, 30, 30, 0.4) 0%,
-        rgba(20, 20, 20, 0.6) 100%);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+        rgba(15, 15, 35, 0.9) 0%,
+        rgba(26, 27, 58, 0.85) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.15);
     box-shadow:
-      0 25px 50px -12px rgba(0, 0, 0, 0.6),
-      0 8px 32px rgba(0, 0, 0, 0.4),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+      0 25px 50px -12px rgba(0, 0, 0, 0.8),
+      0 8px 32px rgba(0, 0, 0, 0.6),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.06);
   }
 
   /* Glass card hover effect */
@@ -139,42 +175,44 @@
     border-radius: 1.5rem;
   }
 
-  /* Enhanced Solid Card with floating effect */
+  /* Enhanced Solid Card with floating effect and better visibility */
   .solid-card {
-    @apply rounded-3xl shadow-2xl border relative overflow-hidden backdrop-blur-sm;
+    @apply rounded-3xl shadow-2xl border relative overflow-hidden;
     background: linear-gradient(145deg,
-        rgba(255, 255, 255, 0.95) 0%,
-        rgba(255, 255, 255, 0.9) 100%);
-    border: 1px solid rgba(229, 231, 235, 0.4);
+        rgba(255, 255, 255, 0.98) 0%,
+        rgba(248, 250, 252, 0.95) 100%);
+    border: 1px solid rgba(229, 231, 235, 0.6);
     box-shadow:
-      0 20px 40px -8px rgba(0, 0, 0, 0.12),
-      0 8px 16px -4px rgba(0, 0, 0, 0.08),
-      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+      0 20px 40px -8px rgba(0, 0, 0, 0.18),
+      0 8px 16px -4px rgba(0, 0, 0, 0.12),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px) saturate(1.2);
   }
 
   .dark .solid-card {
     background: linear-gradient(145deg,
-        rgba(26, 27, 58, 0.95) 0%,
-        rgba(30, 30, 30, 0.9) 100%);
-    border: 1px solid rgba(55, 65, 81, 0.3);
+        rgba(15, 15, 35, 0.95) 0%,
+        rgba(26, 27, 58, 0.9) 100%);
+    border: 1px solid rgba(75, 85, 99, 0.4);
     box-shadow:
-      0 20px 40px -8px rgba(0, 0, 0, 0.4),
-      0 8px 16px -4px rgba(0, 0, 0, 0.2),
-      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      0 20px 40px -8px rgba(0, 0, 0, 0.6),
+      0 8px 16px -4px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(25px) saturate(1.3);
   }
 
   /* Stunning Premium Button Styles */
   .btn-primary {
     @apply text-white font-semibold px-8 py-4 rounded-2xl relative overflow-hidden transform transition-all duration-300 cursor-pointer;
     background: linear-gradient(135deg,
-        #4A90E2 0%,
-        #5B9BD5 50%,
+        #2563EB 0%,
+        #3B82F6 50%,
         #6366f1 100%);
     box-shadow:
-      0 12px 24px rgba(74, 144, 226, 0.4),
-      0 6px 12px rgba(74, 144, 226, 0.2),
+      0 12px 24px rgba(37, 99, 235, 0.4),
+      0 6px 12px rgba(37, 99, 235, 0.2),
       inset 0 1px 0 rgba(255, 255, 255, 0.2);
-    z-index: 5 !important; /* Lower than dropdown */
+    z-index: 0 !important; /* Much lower than dropdown */
     position: relative !important;
   }
 
@@ -195,8 +233,8 @@
   .btn-primary:hover {
     transform: translateY(-3px) scale(1.02);
     box-shadow:
-      0 20px 35px rgba(74, 144, 226, 0.4),
-      0 10px 20px rgba(74, 144, 226, 0.25),
+      0 20px 35px rgba(37, 99, 235, 0.4),
+      0 10px 20px rgba(37, 99, 235, 0.25),
       inset 0 1px 0 rgba(255, 255, 255, 0.3);
   }
 
@@ -254,26 +292,47 @@
       inset 0 1px 0 rgba(255, 255, 255, 0.8);
   }
 
-  /* Status-specific styling with enhanced gradients */
+  /* Status-specific styling with enhanced gradients for better visibility */
   .task-card-todo {
     @apply border-l-status-todo;
     background: linear-gradient(145deg,
-        rgba(248, 250, 252, 0.95) 0%,
-        rgba(241, 245, 249, 0.9) 100%);
+        rgba(248, 250, 252, 0.98) 0%,
+        rgba(241, 245, 249, 0.95) 100%);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+
+  .dark .task-card-todo {
+    background: linear-gradient(145deg,
+        rgba(15, 15, 35, 0.95) 0%,
+        rgba(26, 27, 58, 0.9) 100%);
   }
 
   .task-card-in_progress {
     @apply border-l-status-progress;
     background: linear-gradient(145deg,
-        rgba(239, 246, 255, 0.95) 0%,
-        rgba(219, 234, 254, 0.9) 100%);
+        rgba(239, 246, 255, 0.98) 0%,
+        rgba(219, 234, 254, 0.95) 100%);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+
+  .dark .task-card-in_progress {
+    background: linear-gradient(145deg,
+        rgba(30, 58, 138, 0.2) 0%,
+        rgba(15, 15, 35, 0.95) 100%);
   }
 
   .task-card-completed {
-    @apply border-l-status-completed opacity-85;
+    @apply border-l-status-completed opacity-90;
     background: linear-gradient(145deg,
-        rgba(236, 253, 245, 0.95) 0%,
-        rgba(209, 250, 229, 0.9) 100%);
+        rgba(236, 253, 245, 0.98) 0%,
+        rgba(209, 250, 229, 0.95) 100%);
+    backdrop-filter: blur(20px) saturate(1.2);
+  }
+
+  .dark .task-card-completed {
+    background: linear-gradient(145deg,
+        rgba(6, 78, 59, 0.2) 0%,
+        rgba(15, 15, 35, 0.95) 100%);
   }
 
   /* Stunning Priority Indicators */

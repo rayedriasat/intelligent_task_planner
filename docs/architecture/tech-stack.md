@@ -1,0 +1,23 @@
+# Tech Stack
+
+This table represents the complete and final technology stack for the Intelligent Task Planner MVP. All development must adhere to these specific choices and versions to ensure consistency and compatibility with the PythonAnywhere deployment target.
+
+### Technology Stack Table
+
+| Category                 | Technology                                | Version        | Purpose                                                                | Rationale                                                                                             |
+| :----------------------- | :---------------------------------------- | :------------- | :--------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| **Backend Language**     | Python                                    | 3.13.1         | Primary language for all backend logic.                                | Specified in PRD; modern, robust, and has excellent support for Django.                               |
+| **Backend Framework**    | Django                                    | 5.2.4          | Core web framework for the entire monolithic application.              | Specified in PRD; enables rapid development with its "batteries-included" philosophy.                 |
+| **Dependency Mgmt**      | UV                                        | 0.7.13         | Managing and installing Python packages.                               | Specified in PRD for its high performance and modern features.                                        |
+| **Database**             | MySQL                                     | 8.0+           | Relational database for all application data.                          | Specified in PRD; fully supported by Django and PythonAnywhere.                                       |
+| **Database Connector**   | mysqlclient                               | 2.2.7          | Python MySQL database connector for Django.                            | Official MySQL connector recommended by Django for production use.                                     |
+| **Authentication**       | django-allauth                            | 65.10.0        | Handles user registration, login, and verification.                    | Specified in PRD; a comprehensive, secure, and time-saving solution.                                  |
+| **Frontend Framework**   | HTMX                                      | 1.9.12         | Enables dynamic, interactive UIs by swapping HTML fragments from the server. | Core technical choice from PRD to avoid heavy client-side JS frameworks.                              |
+| **Client-Side Scripting**  | Alpine.js                               | 3.14.0         | Manages small, localized UI interactions (e.g., dropdowns, modals).    | Specified in PRD; the designated "sprinkle" of JS for a lightweight frontend.                           |
+| **Styling**              | TailwindCSS                               | 3.4.3          | Utility-first CSS framework for building the UI.                       | Specified in PRD; allows for rapid development and easy implementation of the design tokens.        |
+| **Async Tasks**          | Django-Q2                                 | 1.8.0          | Handles background tasks, specifically for sending notifications.      | A simple, effective task queue that integrates well with Django's ORM. Updated to Django-Q2 for better Django 5.x compatibility. |
+| **HTTP Client**          | HTTPX                                     | 0.28.1         | Modern async HTTP client for external API calls.                       | High-performance HTTP client for OpenRouter API integration with async support.                       |
+| **Backend Testing**      | Pytest & pytest-django                   | 8.4.1 & 4.11.1 | Framework for writing and running all backend unit and integration tests. | Industry standard for Python testing; provides a clean and powerful testing experience.             |
+| **Deployment Platform**  | PythonAnywhere                          | Free Tier      | Exclusive hosting platform for the MVP.                                | Hard constraint from the PRD that dictates many architectural choices.                                |
+| **External API**         | OpenRouter API                            | N/A            | Provides optional AI-driven scheduling suggestions.                    | Specified in PRD as a non-critical, progressive enhancement.                                          |
+

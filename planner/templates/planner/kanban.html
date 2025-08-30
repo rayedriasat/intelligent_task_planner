@@ -1,4 +1,4 @@
-{% extends 'base_animated.html' %}
+{% extends 'base.html' %}
 
 {% block title %}My Tasks - Task Planner{% endblock %}
 
@@ -12,7 +12,7 @@
 <div class="max-w-7xl mx-auto">
     <!-- Header -->
     <div class="flex justify-between items-center mb-8">
-        <h1 class="text-2xl font-bold">My Tasks</h1>
+        <h1 class="text-2xl font-bold text-primary">My Tasks</h1>
         <button onclick="document.getElementById('taskModal').classList.remove('hidden')" class="btn-primary">
             Add Task
         </button>

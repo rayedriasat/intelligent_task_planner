@@ -26,6 +26,7 @@ urlpatterns = [
     path('calendar/update-task/', views.update_task_schedule, name='update_task_schedule'),
     path('calendar/unschedule/', views.unschedule_task, name='unschedule_task'),
     path('calendar/reoptimize/', views.reoptimize_week, name='reoptimize_week'),
+    path('calendar/undo-optimization/', views.undo_optimization, name='undo_optimization'),
 
     
     # Time blocks
@@ -43,4 +44,20 @@ urlpatterns = [
     # API endpoints for HTMX
     path('api/task-card/<int:pk>/', views.task_card_partial, name='task_card_partial'),
     path('api/unscheduled-tasks/', views.unscheduled_tasks_partial, name='unscheduled_tasks_partial'),
+    path('api/quick-schedule/', views.quick_schedule_task, name='quick_schedule_task'),
+    path('api/schedule-urgent/', views.schedule_urgent_tasks, name='schedule_urgent_tasks'),
+    
+    # Sacrifice mode for urgent tasks
+    path('api/create-urgent/', views.create_urgent_task, name='create_urgent_task'),
+    path('api/sacrifice-tasks/', views.sacrifice_tasks, name='sacrifice_tasks'),
+    
+    # Notifications
+    path('notifications/', views.NotificationPreferencesView.as_view(), name='notification_preferences'),
+    path('api/notifications/', views.get_notifications, name='get_notifications'),
+    path('api/notifications/read/', views.mark_notification_read, name='mark_notification_read'),
+    path('api/notifications/test/', views.test_notification, name='test_notification'),
+    
+    # AI Integration
+    path('api/ai-suggestions/', views.get_ai_scheduling_suggestions, name='get_ai_scheduling_suggestions'),
+    path('api/ai-suggestions/apply/', views.apply_ai_suggestions, name='apply_ai_suggestions'),
 ]

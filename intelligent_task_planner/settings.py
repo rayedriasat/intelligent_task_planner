@@ -176,11 +176,7 @@ Q_CLUSTER = {
     'queue_limit': 500,
     'cpu_affinity': 1,
     'label': 'Django Q2',
-    'redis': {
-        'host': '127.0.0.1',
-        'port': 6379,
-        'db': 0,
-    }
+    'orm': 'default'  # Use Django ORM instead of Redis
 }
 
 # Security settings

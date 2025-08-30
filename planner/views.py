@@ -11,12 +11,15 @@ from django.utils import timezone
 from django.db import transaction
 from django.core.exceptions import ValidationError
 import json
+import logging
 # Add these imports at the top
 from datetime import datetime, timedelta
 from django.db.models import Q
-from .models import Task, TimeBlock, PomodoroSession
+from .models import Task, TimeBlock, PomodoroSession, NotificationPreference
 from .forms import TaskForm, QuickTaskForm, TimeBlockForm
 from .services.scheduling_engine import SchedulingEngine
+
+logger = logging.getLogger(__name__)
 
 
 # Create your views here.
@@ -268,15 +271,127 @@ def unschedule_task(request):
 @login_required
 @require_POST
 def reoptimize_week(request):
-    """Re-optimize the schedule."""
+    """Re-optimize the schedule using the enhanced scheduling engine with optimization history tracking."""
     try:
-        # Here you would call your scheduling engine
-        # For now, just return success
-        return JsonResponse({
-            'success': True, 
-            'message': 'Schedule optimized successfully!'
-        })
+        from .models import OptimizationHistory
         
+        # Create snapshot of current state before optimization
+        optimization_history = OptimizationHistory(user=request.user)
+        current_task_snapshot = optimization_history.create_task_snapshot(request.user)
+        
+        engine = SchedulingEngine(request.user)
+        
+        # Use the enhanced scheduling with analysis
+        result = engine.calculate_schedule_with_analysis()
+        
+        # Save optimization history
+        optimization_history.previous_task_state = current_task_snapshot
+        optimization_history.scheduled_count = len(result['scheduled_tasks'])
+        optimization_history.unscheduled_count = len(result['unscheduled_tasks'])
+        optimization_history.utilization_rate = result['utilization_rate']
+        optimization_history.total_hours_scheduled = result['total_hours_scheduled']
+        optimization_history.was_overloaded = result['overload_analysis']['is_overloaded']
+        
+        if result['overload_analysis']['is_overloaded']:
+            optimization_history.overload_ratio = result['overload_analysis']['overload_ratio']
+            optimization_history.excess_hours = result['overload_analysis']['excess_hours']
+            optimization_history.recommendations = result['overload_analysis']['recommendations']
+        
+        # Store optimization decisions for transparency
+        optimization_history.optimization_decisions = {
+            'algorithm_used': 'enhanced_priority_with_splitting',
+            'priority_factors': ['deadline_urgency', 'task_priority', 'estimated_hours'],
+            'task_splitting_enabled': True,
+            'overload_handling': 'priority_based_selection'
+        }
+        
+        optimization_history.save()
+        
+        # Send optimization notification
+        from .services.notification_service import NotificationService
+        NotificationService.send_optimization_notification(
+            request.user,
+            f"Schedule optimization complete! {len(result['scheduled_tasks'])} tasks scheduled with {round(result['utilization_rate'], 1)}% utilization."
+        )
+        
+        # Save scheduled tasks
+        with transaction.atomic():
+            for task in result['scheduled_tasks']:
+                task.save()
+        
+        # Prepare response with analysis and undo option
+        response_data = {
+            'success': True,
+            'message': f'Schedule optimized! {len(result["scheduled_tasks"])} tasks scheduled.',
+            'scheduled_count': len(result['scheduled_tasks']),
+            'unscheduled_count': len(result['unscheduled_tasks']),
+            'utilization_rate': round(result['utilization_rate'], 1),
+            'overload_analysis': result['overload_analysis'],
+            'optimization_id': optimization_history.id,
+            'can_undo': True,  # Can undo for 1 hour
+        }
+        
+        # Add recommendations if overloaded
+        if result['overload_analysis']['is_overloaded']:
+            response_data['recommendations'] = result['overload_analysis']['recommendations']
+            response_data['message'] += f' Warning: Schedule overloaded by {result["overload_analysis"]["excess_hours"]:.1f} hours.'
+        
+        return JsonResponse(response_data)
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def undo_optimization(request):
+    """Undo the last optimization run."""
+    try:
+        from .models import OptimizationHistory
+        
+        optimization_id = request.POST.get('optimization_id')
+        
+        if optimization_id:
+            # Undo specific optimization
+            optimization = get_object_or_404(
+                OptimizationHistory, 
+                id=optimization_id, 
+                user=request.user
+            )
+        else:
+            # Undo last optimization
+            optimization = OptimizationHistory.objects.filter(
+                user=request.user
+            ).first()
+            
+            if not optimization:
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'No optimization found to undo'
+                })
+        
+        # Check if undo is allowed (within time limit)
+        if not optimization.can_undo:
+            return JsonResponse({
+                'success': False, 
+                'error': 'Optimization too old to undo (1 hour limit)'
+            })
+        
+        # Restore previous task state
+        success = optimization.restore_task_state()
+        
+        if success:
+            return JsonResponse({
+                'success': True,
+                'message': f'Optimization from {optimization.timestamp.strftime("%H:%M")} has been undone',
+                'restored_tasks': len(optimization.previous_task_state)
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Failed to restore previous state'
+            })
+            
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 
@@ -699,3 +814,483 @@ def complete_pomodoro(request):
     
     except Task.DoesNotExist:
         return JsonResponse({'error': 'Task not found'}, status=404)
+
+
+@login_required
+@require_POST
+def quick_schedule_task(request):
+    """Quick schedule a single task in the next available slot."""
+    try:
+        task_id = request.POST.get('task_id')
+        task = get_object_or_404(Task, id=task_id, user=request.user)
+        
+        engine = SchedulingEngine(request.user)
+        
+        # Try to schedule just this one task
+        scheduled_tasks, unscheduled_tasks = engine.calculate_schedule([task])
+        
+        if scheduled_tasks:
+            scheduled_task = scheduled_tasks[0]
+            scheduled_task.save()
+            
+            return JsonResponse({
+                'success': True,
+                'scheduled_time': scheduled_task.start_time.strftime('%b %d at %I:%M %p'),
+                'task_title': scheduled_task.title
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'No available time slots found for this task'
+            })
+            
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def schedule_urgent_tasks(request):
+    """Schedule all urgent tasks automatically."""
+    try:
+        # Get urgent tasks (due within 2 days)
+        urgent_deadline = timezone.now() + timedelta(days=2)
+        
+        urgent_tasks = list(request.user.tasks.filter(
+            deadline__lte=urgent_deadline,
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        ).order_by('deadline', 'priority'))
+        
+        if not urgent_tasks:
+            return JsonResponse({
+                'success': True,
+                'scheduled_count': 0,
+                'message': 'No urgent tasks found'
+            })
+        
+        engine = SchedulingEngine(request.user)
+        scheduled_tasks, unscheduled_tasks = engine.calculate_schedule(urgent_tasks)
+        
+        # Save scheduled tasks
+        with transaction.atomic():
+            for task in scheduled_tasks:
+                task.save()
+        
+        return JsonResponse({
+            'success': True,
+            'scheduled_count': len(scheduled_tasks),
+            'unscheduled_count': len(unscheduled_tasks),
+            'message': f'Scheduled {len(scheduled_tasks)} urgent tasks'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def create_urgent_task(request):
+    """Create an urgent task and check if sacrifice mode is needed."""
+    try:
+        from .forms import TaskForm
+        
+        form = TaskForm(request.POST)
+        if form.is_valid():
+            task = form.save(commit=False)
+            task.user = request.user
+            task.priority = 1  # Force high priority for urgent tasks
+            task.save()
+            
+            # Check if there's available time for this task
+            engine = SchedulingEngine(request.user)
+            available_slots = engine._generate_available_slots(list(request.user.time_blocks.all()))
+            
+            # Calculate total available time
+            total_available = sum(engine._slot_duration(slot) for slot in available_slots)
+            required_time = float(task.estimated_hours)
+            
+            if total_available >= required_time:
+                # Try to schedule normally
+                scheduled_slot = engine._find_suitable_slot(task, available_slots)
+                if scheduled_slot:
+                    task.start_time = scheduled_slot['start']
+                    task.end_time = scheduled_slot['end']
+                    task.save()
+                    
+                    return JsonResponse({
+                        'success': True,
+                        'message': 'Urgent task scheduled successfully',
+                        'task_id': task.id,
+                        'scheduled': True
+                    })
+            
+            # No available time - trigger sacrifice mode
+            conflicting_tasks = request.user.tasks.filter(
+                start_time__isnull=False,
+                end_time__isnull=False,
+                status__in=['todo', 'in_progress'],
+                is_locked=False
+            ).order_by('start_time')
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'No available time slots. Choose tasks to reschedule.',
+                'task_id': task.id,
+                'scheduled': False,
+                'sacrifice_mode': True,
+                'conflicting_tasks': [
+                    {
+                        'id': t.id,
+                        'title': t.title,
+                        'start_time': t.start_time.isoformat(),
+                        'end_time': t.end_time.isoformat(),
+                        'estimated_hours': float(t.estimated_hours),
+                        'priority': t.priority,
+                        'is_locked': t.is_locked
+                    } for t in conflicting_tasks
+                ]
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid form data',
+                'errors': form.errors
+            })
+            
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def sacrifice_tasks(request):
+    """Execute sacrifice mode - bump selected tasks to make room for urgent task."""
+    try:
+        urgent_task_id = request.POST.get('urgent_task_id')
+        sacrifice_task_ids = request.POST.getlist('sacrifice_task_ids')
+        target_datetime = request.POST.get('target_datetime')
+        
+        if not urgent_task_id or not target_datetime:
+            return JsonResponse({
+                'success': False,
+                'error': 'Missing required parameters'
+            })
+        
+        urgent_task = get_object_or_404(Task, id=urgent_task_id, user=request.user)
+        target_time = datetime.fromisoformat(target_datetime.replace('Z', '+00:00'))
+        if timezone.is_naive(target_time):
+            target_time = timezone.make_aware(target_time)
+        
+        with transaction.atomic():
+            # Unschedule sacrifice tasks
+            if sacrifice_task_ids:
+                sacrifice_tasks_qs = Task.objects.filter(
+                    id__in=sacrifice_task_ids,
+                    user=request.user,
+                    is_locked=False
+                )
+                
+                for task in sacrifice_tasks_qs:
+                    task.start_time = None
+                    task.end_time = None
+                    task.save()
+            
+            # Schedule the urgent task
+            duration = timedelta(hours=float(urgent_task.estimated_hours))
+            urgent_task.start_time = target_time
+            urgent_task.end_time = target_time + duration
+            urgent_task.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Urgent task scheduled. {len(sacrifice_task_ids)} tasks moved to unscheduled.',
+            'sacrificed_count': len(sacrifice_task_ids)
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+class NotificationPreferencesView(LoginRequiredMixin, UpdateView):
+    """View for managing user notification preferences."""
+    model = NotificationPreference
+    template_name = 'planner/notification_preferences.html'
+    fields = [
+        'task_reminder_enabled', 'task_reminder_minutes', 'task_reminder_method',
+        'deadline_warning_enabled', 'deadline_warning_hours', 'deadline_warning_method',
+        'schedule_optimization_enabled', 'schedule_optimization_method',
+        'pomodoro_break_enabled',
+        'email_notifications_enabled', 'browser_notifications_enabled'
+    ]
+    success_url = reverse_lazy('planner:notification_preferences')
+    
+    def get_object(self, queryset=None):
+        """Get or create notification preferences for the current user."""
+        from .models import NotificationPreference
+        return NotificationPreference.get_or_create_for_user(self.request.user)
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Notification preferences updated successfully!')
+        return super().form_valid(form)
+
+
+@login_required
+def get_notifications(request):
+    """API endpoint to get pending notifications for the current user."""
+    try:
+        from .models import TaskNotification
+        
+        # Get recent notifications (sent in the last 24 hours) for display
+        recent_notifications = TaskNotification.objects.filter(
+            task__user=request.user,
+            status='sent',
+            sent_time__gte=timezone.now() - timedelta(hours=24)
+        ).order_by('-sent_time')[:10]
+        
+        notifications_data = []
+        for notification in recent_notifications:
+            notifications_data.append({
+                'id': notification.id,
+                'title': notification.title,
+                'message': notification.message,
+                'notification_type': notification.notification_type,
+                'created_at': notification.sent_time.isoformat(),
+                'is_read': False,  # We'll add read tracking later
+                'task': {
+                    'id': notification.task.id,
+                    'title': notification.task.title,
+                } if notification.task else None
+            })
+        
+        # For now, assume all notifications are unread
+        unread_count = len(notifications_data)
+        
+        return JsonResponse({
+            'success': True,
+            'notifications': notifications_data,
+            'unread_count': unread_count
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def mark_notification_read(request):
+    """Mark a notification as read."""
+    try:
+        from .models import TaskNotification
+        
+        notification_id = request.POST.get('notification_id')
+        notification = get_object_or_404(
+            TaskNotification,
+            id=notification_id,
+            task__user=request.user
+        )
+        
+        # For now, we don't have a 'read' status, but we could add one
+        # This endpoint exists for future expansion
+        
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def test_notification(request):
+    """Test notification system by sending a test notification."""
+    try:
+        from .services.notification_service import NotificationService
+        
+        # Send a test optimization notification
+        NotificationService.send_optimization_notification(
+            request.user,
+            "This is a test notification to verify your notification settings are working correctly."
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Test notification sent! Check your email and browser notifications.'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def get_ai_scheduling_suggestions(request):
+    """API endpoint to get AI-powered scheduling suggestions."""
+    try:
+        from .services.ai_service import get_ai_scheduling_suggestions_sync
+        
+        # Get unscheduled tasks
+        unscheduled_tasks = list(request.user.tasks.filter(
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        ))
+        
+        if not unscheduled_tasks:
+            return JsonResponse({
+                'success': False,
+                'error': 'No unscheduled tasks found',
+                'suggestions': []
+            })
+        
+        # Get available time blocks (next 7 days)
+        from datetime import timedelta
+        start_date = timezone.now()
+        end_date = start_date + timedelta(days=7)
+        
+        # Find time blocks that overlap with the next 7 days
+        # A block overlaps if: block.start_time < end_date AND block.end_time > start_date
+        available_blocks = list(request.user.time_blocks.filter(
+            start_time__lt=end_date,  # Block starts before the 7-day window ends
+            end_time__gt=start_date   # Block ends after the window starts
+        ))
+        
+        if not available_blocks:
+            return JsonResponse({
+                'success': False,
+                'error': 'No available time blocks found for the next 7 days',
+                'suggestions': []
+            })
+        
+        # Call AI service
+        ai_response = get_ai_scheduling_suggestions_sync(unscheduled_tasks, available_blocks)
+        
+        if ai_response.success:
+            # Format suggestions for frontend
+            suggestions_data = []
+            for suggestion in ai_response.suggestions:
+                # Get task details
+                try:
+                    task = next(t for t in unscheduled_tasks if t.id == suggestion.task_id)
+                    suggestions_data.append({
+                        'task_id': suggestion.task_id,
+                        'task_title': task.title,
+                        'task_description': task.description,
+                        'suggested_start_time': suggestion.suggested_start_time,
+                        'suggested_end_time': suggestion.suggested_end_time,
+                        'confidence_score': suggestion.confidence_score,
+                        'reasoning': suggestion.reasoning
+                    })
+                except StopIteration:
+                    continue  # Task not found, skip
+            
+            return JsonResponse({
+                'success': True,
+                'suggestions': suggestions_data,
+                'overall_score': ai_response.overall_score,
+                'reasoning': ai_response.reasoning,
+                'total_tasks_analyzed': len(unscheduled_tasks),
+                'total_suggestions': len(suggestions_data)
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': ai_response.error_message,
+                'reasoning': ai_response.reasoning,
+                'suggestions': []
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in get_ai_scheduling_suggestions: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Service error: {str(e)}',
+            'suggestions': []
+        })
+
+
+@login_required
+@require_POST
+def apply_ai_suggestions(request):
+    """Apply selected AI scheduling suggestions to actually schedule tasks."""
+    try:
+        selected_suggestions = request.POST.getlist('selected_suggestions')
+        
+        if not selected_suggestions:
+            return JsonResponse({
+                'success': False,
+                'error': 'No suggestions selected'
+            })
+        
+        # Get fresh AI suggestions to ensure data integrity
+        from .services.ai_service import get_ai_scheduling_suggestions_sync
+        
+        # Get unscheduled tasks
+        unscheduled_tasks = list(request.user.tasks.filter(
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        ))
+        
+        # Get available time blocks
+        from datetime import timedelta
+        start_date = timezone.now()
+        end_date = start_date + timedelta(days=7)
+        
+        # Find time blocks that overlap with the next 7 days
+        available_blocks = list(request.user.time_blocks.filter(
+            start_time__lt=end_date,  # Block starts before the 7-day window ends
+            end_time__gt=start_date   # Block ends after the window starts
+        ))
+        
+        # Get fresh AI suggestions
+        ai_response = get_ai_scheduling_suggestions_sync(unscheduled_tasks, available_blocks)
+        
+        if not ai_response.success:
+            return JsonResponse({
+                'success': False,
+                'error': 'Unable to retrieve current AI suggestions'
+            })
+        
+        # Apply selected suggestions
+        applied_count = 0
+        
+        with transaction.atomic():
+            for suggestion in ai_response.suggestions:
+                # Check if this suggestion was selected
+                suggestion_id = f"{suggestion.task_id}_{suggestion.suggested_start_time}"
+                if suggestion_id in selected_suggestions:
+                    try:
+                        # Get the task
+                        task = request.user.tasks.get(id=suggestion.task_id)
+                        
+                        # Parse suggested times
+                        start_time = timezone.datetime.fromisoformat(suggestion.suggested_start_time.replace('Z', '+00:00'))
+                        end_time = timezone.datetime.fromisoformat(suggestion.suggested_end_time.replace('Z', '+00:00'))
+                        
+                        # Apply the scheduling
+                        task.start_time = start_time
+                        task.end_time = end_time
+                        task.save()
+                        
+                        applied_count += 1
+                        
+                    except (Task.DoesNotExist, ValueError) as e:
+                        logger.warning(f"Failed to apply suggestion for task {suggestion.task_id}: {e}")
+                        continue
+        
+        # Send notification about applied AI suggestions
+        from .services.notification_service import NotificationService
+        NotificationService.send_optimization_notification(
+            request.user,
+            f"AI suggestions applied! {applied_count} tasks have been scheduled based on AI recommendations."
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'applied_count': applied_count,
+            'message': f'Successfully applied {applied_count} AI suggestions'
+        })
+        
+    except Exception as e:
+        logger.error(f"Error applying AI suggestions: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Failed to apply suggestions: {str(e)}'
+        })
