@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{% if form.instance.pk %}Edit Task{% else %}Create Task{% endif %} - Task Planner
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="solid-card p-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-primary">
+                {% if form.instance.pk %}Edit Task{% else %}Create New Task{% endif %}
+            </h1>
+            <a href="{% if form.instance.pk %}{% url 'planner:task_detail' form.instance.pk %}{% else %}{% url 'planner:kanban' %}{% endif %}" 
+               class="text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </a>
+        </div>
+
+        {% if form.errors %}
+        <div class="bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+            <div class="flex">
+                <svg class="w-5 h-5 text-red-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+                <div>
+                    <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+                        Please correct the following errors:
+                    </h3>
+                    <div class="mt-2 text-sm text-red-700 dark:text-red-300">
+                        <ul class="list-disc list-inside space-y-1">
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                <li>{{ field|title }}: {{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+
+            <div>
+                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium mb-2">
+                    Task Title *
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div class="text-red-500 text-sm mt-1">
+                        {% for error in form.title.errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium mb-2">
+                    Description
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="text-red-500 text-sm mt-1">
+                        {% for error in form.description.errors %}
+                        <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <p class="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">
+                    Optional. Provide additional details about this task.
+                </p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.deadline.id_for_label }}" class="block text-sm font-medium mb-2">
+                        Deadline *
+                    </label>
+                    {{ form.deadline }}
+                    {% if form.deadline.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.deadline.errors %}
+                            <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.priority.id_for_label }}" class="block text-sm font-medium mb-2">
+                        Priority *
+                    </label>
+                    {{ form.priority }}
+                    {% if form.priority.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.priority.errors %}
+                            <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.estimated_hours.id_for_label }}" class="block text-sm font-medium mb-2">
+                        Estimated Hours *
+                        <span class="text-xs text-text-secondary dark:text-dark-text-secondary font-normal">(e.g., 2.5)</span>
+                    </label>
+                    {{ form.estimated_hours }}
+                    {% if form.estimated_hours.help_text %}
+                    <p class="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">{{ form.estimated_hours.help_text }}</p>
+                    {% endif %}
+                    {% if form.estimated_hours.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.estimated_hours.errors %}
+                            <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.min_block_size.id_for_label }}" class="block text-sm font-medium mb-2">
+                        Min Block Size *
+                        <span class="text-xs text-text-secondary dark:text-dark-text-secondary font-normal">(e.g., 0.5)</span>
+                    </label>
+                    {{ form.min_block_size }}
+                    {% if form.min_block_size.help_text %}
+                    <p class="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">{{ form.min_block_size.help_text }}</p>
+                    {% endif %}
+                    {% if form.min_block_size.errors %}
+                        <div class="text-red-500 text-sm mt-1">
+                            {% for error in form.min_block_size.errors %}
+                            <p>{{ error }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if form.instance.pk %}
+            <!-- Show current scheduling status for existing tasks -->
+            <div class="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <h3 class="text-sm font-medium text-blue-800 dark:text-blue-200 mb-2">Current Status</h3>
+                <div class="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                    <p><strong>Status:</strong> {{ form.instance.get_status_display }}</p>
+                    {% if form.instance.is_scheduled %}
+                    <p><strong>Scheduled:</strong> {{ form.instance.start_time|date:"M d, Y \a\t H:i" }} - {{ form.instance.end_time|date:"H:i" }}</p>
+                    {% else %}
+                    <p><strong>Scheduled:</strong> Not yet scheduled</p>
+                    {% endif %}
+                    {% if form.instance.is_locked %}
+                    <p><strong>Lock Status:</strong> Locked (protected from automatic rescheduling)</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="flex space-x-4 pt-4">
+                <button type="submit" class="btn-primary flex-1">
+                    {% if form.instance.pk %}Update Task{% else %}Create Task{% endif %}
+                </button>
+                <a href="{% if form.instance.pk %}{% url 'planner:task_detail' form.instance.pk %}{% else %}{% url 'planner:kanban' %}{% endif %}" 
+                   class="btn-secondary flex-1 text-center">
+                    Cancel
+                </a>
+            </div>
+        </form>
+
+        {% if form.instance.pk %}
+        <!-- Additional actions for existing tasks -->
+        <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center">
+                <div class="text-sm text-text-secondary dark:text-dark-text-secondary">
+                    <p>Created: {{ form.instance.created_at|date:"M d, Y \a\t H:i" }}</p>
+                    {% if form.instance.updated_at != form.instance.created_at %}
+                    <p>Last updated: {{ form.instance.updated_at|date:"M d, Y \a\t H:i" }}</p>
+                    {% endif %}
+                </div>
+                <a href="{% url 'planner:task_delete' form.instance.pk %}" 
+                   class="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm font-medium"
+                   onclick="return confirm('Are you sure you want to delete this task?')">
+                    Delete Task
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Help Section -->
+    <div class="mt-6 solid-card p-6">
+        <h3 class="text-lg font-medium mb-3">Tips for Creating Effective Tasks</h3>
+        <div class="space-y-2 text-sm text-text-secondary dark:text-dark-text-secondary">
+            <div class="flex items-start">
+                <svg class="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span><strong>Be specific:</strong> Clear task titles help you stay focused and make progress easier to track.</span>
+            </div>
+            <div class="flex items-start">
+                <svg class="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span><strong>Estimate realistically:</strong> Include time for breaks and unexpected issues in your estimates.</span>
+            </div>
+            <div class="flex items-start">
+                <svg class="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span><strong>Set appropriate deadlines:</strong> Give yourself enough time while maintaining urgency.</span>
+            </div>
+            <div class="flex items-start">
+                <svg class="w-4 h-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                </svg>
+                <span><strong>Use minimum block size:</strong> Set this to the minimum time needed to make meaningful progress.</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

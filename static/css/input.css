@@ -278,6 +278,51 @@
       0 6px 12px rgba(0, 0, 0, 0.06);
   }
 
+  /* Danger Button Styles */
+  .btn-danger {
+    @apply text-white font-semibold px-8 py-4 rounded-2xl relative overflow-hidden transform transition-all duration-300 cursor-pointer;
+    background: linear-gradient(135deg,
+        #DC2626 0%,
+        #EF4444 50%,
+        #F87171 100%);
+    box-shadow:
+      0 12px 24px rgba(220, 38, 38, 0.4),
+      0 6px 12px rgba(220, 38, 38, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    z-index: 0 !important;
+    position: relative !important;
+  }
+
+  .btn-danger::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent);
+    transition: left 0.6s ease;
+  }
+
+  .btn-danger:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow:
+      0 20px 35px rgba(220, 38, 38, 0.4),
+      0 10px 20px rgba(220, 38, 38, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+
+  .btn-danger:hover::before {
+    left: 100%;
+  }
+
+  .btn-danger:active {
+    transform: translateY(-1px) scale(0.98);
+  }
+
   /* Floating Task Card Design */
   .task-card {
     @apply solid-card p-6 cursor-grab border-l-4 relative transition-all duration-300 ease-out;

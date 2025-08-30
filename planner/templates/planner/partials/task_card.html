@@ -67,7 +67,7 @@
 
 <script>
 function toggleTaskLock(taskId) {
-    fetch(`/tasks/${taskId}/lock/`, {
+    fetch(`{% url 'planner:toggle_task_lock' pk=0 %}`.replace('0', taskId), {
         method: 'POST',
         headers: {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
@@ -75,8 +75,8 @@ function toggleTaskLock(taskId) {
     })
     .then(response => {
         if (response.ok) {
-            // Subtle update without reload
-            console.log('Task lock toggled');
+            // Reload the page to show updated lock status
+            location.reload();
         }
     })
     .catch(error => console.error('Error:', error));
