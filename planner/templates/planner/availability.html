@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+
+{% block title %}Availability - Task Planner{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-primary mb-2">My Availability</h1>
+            <p class="text-text-secondary dark:text-dark-text-secondary">
+                Define when you're available to work on tasks. The scheduling engine uses this to create your schedule.
+            </p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="{% url 'planner:timeblock_create' %}" class="btn-primary">
+                Add Time Block
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Add Form -->
+    <div class="solid-card p-6 mb-8">
+        <h3 class="text-lg font-semibold mb-4">Quick Add Time Block</h3>
+        <form action="{% url 'planner:timeblock_create' %}" method="post" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            {% csrf_token %}
+            
+            <div>
+                <label for="{{ form.start_time.id_for_label }}" class="block text-sm font-medium mb-1">Start Time</label>
+                {{ form.start_time }}
+            </div>
+            
+            <div>
+                <label for="{{ form.end_time.id_for_label }}" class="block text-sm font-medium mb-1">End Time</label>
+                {{ form.end_time }}
+            </div>
+            
+            <div>
+                <label for="{{ form.is_recurring.id_for_label }}" class="block text-sm font-medium mb-1">Recurring?</label>
+                <div class="flex items-center h-10">
+                    {{ form.is_recurring }}
+                    <label for="{{ form.is_recurring.id_for_label }}" class="ml-2 text-sm">Weekly recurring</label>
+                </div>
+            </div>
+            
+            <div id="day-of-week-field" style="display: none;">
+                <label for="{{ form.day_of_week.id_for_label }}" class="block text-sm font-medium mb-1">Day of Week</label>
+                {{ form.day_of_week }}
+            </div>
+            
+            <div class="flex items-end">
+                <button type="submit" class="btn-primary w-full">Add Block</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="solid-card p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-2xl font-bold text-primary">{{ time_blocks.count }}</p>
+                    <p class="text-sm text-text-secondary dark:text-dark-text-secondary">Total Blocks</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="solid-card p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    {% with recurring_blocks=time_blocks|dictsort:"is_recurring" %}
+                    <p class="text-2xl font-bold text-green-600">{{ recurring_blocks|length }}</p>
+                    <p class="text-sm text-text-secondary dark:text-dark-text-secondary">Recurring</p>
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+
+        <div class="solid-card p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-2xl font-bold text-yellow-600">{{ total_hours|floatformat:1 }}h</p>
+                    <p class="text-sm text-text-secondary dark:text-dark-text-secondary">Weekly Hours</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="solid-card p-6">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <p class="text-2xl font-bold text-purple-600">{{ utilization_percent|floatformat:0 }}%</p>
+                    <p class="text-sm text-text-secondary dark:text-dark-text-secondary">Utilization</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Time Blocks List -->
+    <div class="solid-card">
+        <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold">Your Time Blocks</h3>
+        </div>
+        
+        {% if time_blocks %}
+        <div class="divide-y divide-gray-200 dark:divide-gray-700">
+            {% for block in time_blocks %}
+            <div class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-800">
+                <div class="flex items-center justify-between">
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center">
+                            {% if block.is_recurring %}
+                            <div class="w-3 h-3 bg-green-500 rounded-full mr-3" title="Recurring"></div>
+                            {% else %}
+                            <div class="w-3 h-3 bg-blue-500 rounded-full mr-3" title="One-time"></div>
+                            {% endif %}
+                            
+                            <div class="flex-1">
+                                <div class="flex items-center justify-between">
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                            {% if block.is_recurring %}
+                                                {{ block.get_day_of_week_display }} 
+                                                {{ block.start_time|time:"H:i" }} - {{ block.end_time|time:"H:i" }}
+                                            {% else %}
+                                                {{ block.start_time|date:"M d, Y H:i" }} - {{ block.end_time|time:"H:i" }}
+                                            {% endif %}
+                                        </p>
+                                        <div class="flex items-center mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            {{ block.duration_hours|floatformat:1 }} hours
+                                            {% if block.is_recurring %}
+                                                <span class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 rounded-full">
+                                                    Weekly
+                                                </span>
+                                            {% else %}
+                                                <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100 rounded-full">
+                                                    One-time
+                                                </span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="flex space-x-2 ml-4">
+                                        <a href="{% url 'planner:timeblock_delete' block.pk %}" 
+                                           class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+                                           onclick="return confirm('Are you sure you want to delete this time block?')">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="px-6 py-12 text-center">
+            <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No time blocks defined</h3>
+            <p class="text-gray-500 dark:text-gray-400 mb-6">
+                Add time blocks to let the scheduling engine know when you're available to work on tasks.
+            </p>
+            <a href="{% url 'planner:timeblock_create' %}" class="btn-primary">
+                Add Your First Time Block
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tips Section -->
+    <div class="mt-8 solid-card p-6">
+        <h3 class="text-lg font-semibold mb-4">Tips for Managing Availability</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <h4 class="font-medium text-primary mb-2">Recurring Time Blocks</h4>
+                <ul class="text-sm text-text-secondary dark:text-dark-text-secondary space-y-1">
+                    <li>• Use for regular work hours or study sessions</li>
+                    <li>• Great for building consistent daily routines</li>
+                    <li>• Automatically applied each week</li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-medium text-primary mb-2">One-time Blocks</h4>
+                <ul class="text-sm text-text-secondary dark:text-dark-text-secondary space-y-1">
+                    <li>• Perfect for special events or meetings</li>
+                    <li>• Use for vacation time or blocked calendar days</li>
+                    <li>• More flexible than recurring blocks</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div class="flex">
+                <svg class="w-5 h-5 text-blue-400 mr-3 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+                <div>
+                    <h4 class="text-sm font-medium text-blue-800 dark:text-blue-200">Pro Tip</h4>
+                    <p class="text-sm text-blue-700 dark:text-blue-300 mt-1">
+                        The more availability you provide, the better the scheduling engine can organize your tasks. 
+                        Try to be realistic about when you can actually focus on work.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Show/hide day of week field based on recurring checkbox
+document.addEventListener('DOMContentLoaded', function() {
+    const recurringCheckbox = document.getElementById('{{ form.is_recurring.id_for_label }}');
+    const dayOfWeekField = document.getElementById('day-of-week-field');
+    
+    function toggleDayOfWeekField() {
+        if (recurringCheckbox.checked) {
+            dayOfWeekField.style.display = 'block';
+            dayOfWeekField.querySelector('select').required = true;
+        } else {
+            dayOfWeekField.style.display = 'none';
+            dayOfWeekField.querySelector('select').required = false;
+        }
+    }
+    
+    recurringCheckbox.addEventListener('change', toggleDayOfWeekField);
+    toggleDayOfWeekField(); // Initial call
+});
+</script>
+{% endblock %}
