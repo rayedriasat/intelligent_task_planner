@@ -19,6 +19,9 @@ from .models import Task, TimeBlock, PomodoroSession, NotificationPreference
 from .forms import TaskForm, QuickTaskForm, TimeBlockForm
 from .services.scheduling_engine import SchedulingEngine
 
+# Global request counter for debugging
+sync_request_counter = 0
+
 logger = logging.getLogger(__name__)
 
 
@@ -79,56 +82,14 @@ class OnboardingView(LoginRequiredMixin, TemplateView):
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    """Main dashboard with overview statistics."""
+    """Main dashboard - redirects to Kanban by default."""
     template_name = 'planner/dashboard.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        
-        # Get user's tasks and calculate stats
-        user_tasks = self.request.user.tasks.all()
-        today = timezone.now().date()
-        
-        # Calculate task status counts
-        total_tasks = user_tasks.count()
-        completed_tasks_count = user_tasks.filter(status='completed').count()
-        in_progress_tasks_count = user_tasks.filter(status='in_progress').count()
-        todo_tasks_count = user_tasks.filter(status='todo').count()
-        
-        # Calculate urgent tasks (due within 2 days)
-        urgent_deadline = timezone.now() + timedelta(days=2)
-        urgent_tasks_count = user_tasks.filter(
-            deadline__lte=urgent_deadline,
-            status__in=['todo', 'in_progress']
-        ).count()
-        
-        # Recent tasks (last 10 updated)
-        recent_tasks = user_tasks.order_by('-updated_at')[:10]
-        
-        # Schedule overview stats
-        scheduled_tasks_count = user_tasks.filter(start_time__isnull=False).count()
-        unscheduled_tasks_count = user_tasks.filter(start_time__isnull=True, status__in=['todo', 'in_progress']).count()
-        
-        context.update({
-            'total_tasks': total_tasks,
-            'completed_tasks_count': completed_tasks_count,
-            'in_progress_tasks_count': in_progress_tasks_count,
-            'todo_tasks_count': todo_tasks_count,
-            'recent_tasks': recent_tasks,
-            'urgent_tasks_count': urgent_tasks_count,
-            'scheduled_tasks_count': scheduled_tasks_count,
-            'unscheduled_tasks_count': unscheduled_tasks_count,
-        })
-        
-        return context
 
     def get(self, request, *args, **kwargs):
         # Check if user is new (no tasks)
         if not request.user.tasks.exists():
             return redirect('planner:onboarding')
-        
-        # Render dashboard instead of redirecting to kanban
-        return self.render_to_response(self.get_context_data())
+        return redirect('planner:kanban')
 
 
 class KanbanView(LoginRequiredMixin, TemplateView):
@@ -169,16 +130,8 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
         form.instance.user = self.request.user
         response = super().form_valid(form)
         
-        # Try to schedule the new task
-        engine = SchedulingEngine(self.request.user)
-        scheduled_tasks, unscheduled_tasks = engine.calculate_schedule([self.object])
-        
-        if scheduled_tasks:
-            for task in scheduled_tasks:
-                task.save()
-            messages.success(self.request, f'Task "{self.object.title}" created and scheduled!')
-        else:
-            messages.info(self.request, f'Task "{self.object.title}" created but needs more availability to be scheduled.')
+        # Don't automatically schedule - let users manually schedule or use re-optimize
+        messages.success(self.request, f'Task "{self.object.title}" created! Drag it to a time slot or use Re-optimize to schedule it.')
         
         return response
 
@@ -223,26 +176,70 @@ class CalendarView(LoginRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Get current week
-        today = timezone.now().date()
-        week_start = today - timedelta(days=today.weekday())  # Monday
-        week_end = week_start + timedelta(days=6)  # Sunday
+        # Get week from URL parameter or default to current week
+        week_param = self.request.GET.get('week')
+        if week_param:
+            try:
+                base_date = datetime.strptime(week_param, '%Y-%m-%d').date()
+            except ValueError:
+                base_date = timezone.now().date()
+        else:
+            base_date = timezone.now().date()
         
-        # Get user's tasks for this week
+        # Calculate week start (Monday) and end (Sunday)
+        week_start = base_date - timedelta(days=base_date.weekday())
+        week_end = week_start + timedelta(days=6)
+        
+        # Get user's tasks for this week using datetime range instead of date range
+        # to avoid MySQL timezone conversion issues
+        week_start_dt = timezone.make_aware(datetime.combine(week_start, datetime.min.time()))
+        week_end_dt = timezone.make_aware(datetime.combine(week_end, datetime.max.time()))
+        
         scheduled_tasks = self.request.user.tasks.filter(
-            start_time__date__range=[week_start, week_end]
+            start_time__gte=week_start_dt,
+            start_time__lte=week_end_dt
         ).order_by('start_time')
-        
+
         unscheduled_tasks = self.request.user.tasks.filter(
             start_time__isnull=True,
             status__in=['todo', 'in_progress']
         ).order_by('deadline')
-        
+
         # Generate week days with tasks
         week_days = []
+        today = timezone.now().date()
         for i in range(7):
             day = week_start + timedelta(days=i)
-            day_tasks = scheduled_tasks.filter(start_time__date=day)
+            # Filter tasks for this day from the already-fetched scheduled_tasks
+            # to avoid timezone conversion issues
+            day_tasks = []
+            for task in scheduled_tasks:
+                if task.start_time.date() == day:
+                    # Convert UTC time to local timezone for positioning
+                    local_start_time = task.start_time
+                    if timezone.is_aware(local_start_time):
+                        # Convert to the Django configured timezone
+                        local_start_time = timezone.localtime(local_start_time)
+                    
+                    # Calculate task position (6 AM = position 0)
+                    task_hour = local_start_time.hour
+                    task_minute = local_start_time.minute
+                    
+                    # Position relative to 6 AM (our first hour) 
+                    # Each hour slot is 4rem tall
+                    if task_hour >= 6:  # Only show tasks from 6 AM onwards
+                        position_hours = task_hour - 6  # Hours since 6 AM
+                        position_minutes = task_minute / 60.0  # Convert minutes to decimal hours
+                        task_top = (position_hours + position_minutes) * 4  # 4rem per hour
+                        
+                        # Task height based on estimated hours
+                        task_height = float(task.estimated_hours) * 4  # 4rem per hour
+                        
+                        # Add positioning data to task
+                        task.position_top = task_top
+                        task.position_height = task_height
+                        day_tasks.append(task)
+            
             week_days.append({
                 'date': day,
                 'day_name': day.strftime('%A'),
@@ -251,13 +248,52 @@ class CalendarView(LoginRequiredMixin, TemplateView):
                 'is_today': day == today,
                 'tasks': day_tasks
             })
+
+        # Check Google Calendar integration
+        from .models import GoogleCalendarIntegration
+        google_integration = GoogleCalendarIntegration.objects.filter(
+            user=self.request.user
+        ).first()
         
+        # Auto-sync disabled - user preference
+        # Note: Auto-sync can be re-enabled by uncommenting the code below
+        # if (google_integration and google_integration.is_enabled and 
+        #     (not google_integration.last_sync or 
+        #      timezone.now() - google_integration.last_sync > timedelta(hours=1))):
+        #     # Auto-sync code here...
+        
+        # Calculate navigation dates
+        prev_week = week_start - timedelta(days=7)
+        next_week = week_start + timedelta(days=7)
+        
+        # Generate hour range for calendar display (6 AM to 11 PM)
+        hours = []
+        for hour in range(6, 24):  # 6 AM to 11 PM
+            if hour == 0:
+                time_label = "12 AM"
+            elif hour < 12:
+                time_label = f"{hour}:00 AM"
+            elif hour == 12:
+                time_label = "12 PM"
+            else:
+                time_label = f"{hour - 12}:00 PM"
+            
+            hours.append({
+                'hour': hour,
+                'label': time_label
+            })
+
         context.update({
             'week_start': week_start,
             'week_end': week_end,
+            'prev_week': prev_week,
+            'next_week': next_week,
             'week_days': week_days,
+            'hours': hours,
             'scheduled_tasks': scheduled_tasks,
             'unscheduled_tasks': unscheduled_tasks,
+            'google_integration': google_integration,
+            'has_google_calendar': google_integration is not None,
         })
         
         return context
@@ -1338,231 +1374,351 @@ def apply_ai_suggestions(request):
         })
 
 
-class AIChatView(LoginRequiredMixin, TemplateView):
-    """AI Chat interface for scheduling assistance."""
-    template_name = 'planner/ai_chat.html'
+# Google Calendar Integration Views
+
+class GoogleCalendarSettingsView(LoginRequiredMixin, TemplateView):
+    """View for managing Google Calendar integration settings."""
+    template_name = 'planner/google_calendar_settings.html'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
-        # Get user's task and schedule context for AI
-        user_tasks = self.request.user.tasks.all().order_by('deadline')
-        time_blocks = self.request.user.time_blocks.all().order_by('start_time')
+        try:
+            from .models import GoogleCalendarIntegration, CalendarSyncLog
+            integration = GoogleCalendarIntegration.objects.get(user=self.request.user)
+        except:
+            integration = None
         
-        # Recent optimization history
-        recent_optimizations = []
-        if hasattr(self.request.user, 'optimization_history'):
-            from .models import OptimizationHistory
-            recent_optimizations = OptimizationHistory.objects.filter(
+        # Get recent sync logs
+        try:
+            from .models import CalendarSyncLog
+            sync_logs = CalendarSyncLog.objects.filter(
                 user=self.request.user
-            ).order_by('-timestamp')[:5]
-        
-        # Calculate some stats for context
-        total_tasks = user_tasks.count()
-        completed_tasks = user_tasks.filter(status='completed').count()
-        scheduled_tasks = user_tasks.filter(start_time__isnull=False).count()
-        unscheduled_tasks = total_tasks - scheduled_tasks
-        
-        # Recent activity summary
-        today = timezone.now().date()
-        tasks_due_today = user_tasks.filter(
-            deadline__date=today,
-            status__in=['todo', 'in_progress']
-        ).count()
-        
-        tasks_due_soon = user_tasks.filter(
-            deadline__date__lte=today + timedelta(days=3),
-            deadline__date__gt=today,
-            status__in=['todo', 'in_progress']
-        ).count()
+            )[:10]
+        except:
+            sync_logs = []
         
         context.update({
-            'user_tasks': user_tasks[:10],  # Recent tasks for display
-            'time_blocks': time_blocks,
-            'recent_optimizations': recent_optimizations,
-            'stats': {
-                'total_tasks': total_tasks,
-                'completed_tasks': completed_tasks,
-                'scheduled_tasks': scheduled_tasks,
-                'unscheduled_tasks': unscheduled_tasks,
-                'tasks_due_today': tasks_due_today,
-                'tasks_due_soon': tasks_due_soon,
-                'completion_rate': (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
-            }
+            'integration': integration,
+            'sync_logs': sync_logs,
+            'has_google_token': self._has_google_token(),
         })
         
         return context
+    
+    def _has_google_token(self):
+        """Check if user has valid Google OAuth token."""
+        from allauth.socialaccount.models import SocialToken
+        return SocialToken.objects.filter(
+            account__user=self.request.user,
+            account__provider='google'
+        ).exists()
+    
+    def post(self, request, *args, **kwargs):
+        """Handle settings updates."""
+        try:
+            from .models import GoogleCalendarIntegration
+            integration, created = GoogleCalendarIntegration.objects.get_or_create(
+                user=request.user
+            )
+            
+            # Update settings
+            integration.is_enabled = request.POST.get('is_enabled') == 'on'
+            integration.sync_direction = request.POST.get('sync_direction', 'both')
+            integration.save()
+            
+            messages.success(request, 'Google Calendar settings updated successfully!')
+            
+        except Exception as e:
+            logger.error(f"Error updating Google Calendar settings: {e}")
+            messages.error(request, 'Failed to update settings. Please try again.')
+        
+        return redirect('planner:google_calendar_settings')
 
 
 @login_required
 @require_POST
-def send_ai_chat_message(request):
-    """Send a chat message to AI and get response with full schedule context."""
+def sync_to_google(request):
+    """Sync tasks to Google Calendar."""
+    global sync_request_counter
+    sync_request_counter += 1
+    current_count = sync_request_counter
+    
+    # Get request ID from headers (if sent by client)
+    request_id = request.META.get('HTTP_X_REQUEST_ID', f'server-{current_count}')
+    
+    # COMPLETELY BLOCK AUTO-SYNC - Only allow manual sync
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    referer = request.META.get('HTTP_REFERER', '')
+    request_method = request.method
+    request_path = request.get_full_path()
+    
+    logger.info(f"SYNC DEBUG: sync_to_google called #{current_count} (Request ID: {request_id}) for user {request.user.id} from IP {request.META.get('REMOTE_ADDR')}")
+    logger.info(f"SYNC DEBUG: Method: {request_method}, Path: {request_path}")
+    logger.info(f"SYNC DEBUG: User-Agent: {user_agent[:100]}...")
+    logger.info(f"SYNC DEBUG: Referer: {referer}")
+    logger.info(f"SYNC DEBUG: POST data: {dict(request.POST)}")
+    logger.info(f"SYNC DEBUG: Headers: {dict(request.headers)}")
+    
+    from .models import SyncLock
+    
+    # Try to acquire sync lock with longer timeout to prevent browser retries
+    lock_acquired, lock_instance = SyncLock.acquire_lock(request.user, timeout_minutes=10)
+    if not lock_acquired:
+        logger.warning(f"SYNC DEBUG: sync_to_google #{current_count} (Request ID: {request_id}) BLOCKED - lock already exists for user {request.user.id}")
+        return JsonResponse({
+            'success': False,
+            'message': 'Another sync operation is already in progress. Please wait for it to complete.',
+            'request_id': request_id
+        })
+    
+    logger.info(f"SYNC DEBUG: sync_to_google #{current_count} (Request ID: {request_id}) PROCEEDING for user {request.user.id}")
     try:
-        user_message = request.POST.get('message', '').strip()
-        if not user_message:
-            return JsonResponse({
-                'success': False,
-                'error': 'Message cannot be empty'
-            })
+        from .services.google_calendar_service import GoogleCalendarService
+        service = GoogleCalendarService(request.user)
+        result = service.sync_tasks_to_google()
         
-        # Get comprehensive user context
-        user_context = _get_user_schedule_context(request.user)
-        
-        # Import AI service
-        from .services.ai_service import get_ai_chat_response_sync
-        
-        # Get AI response with full context
-        ai_response = get_ai_chat_response_sync(user_message, user_context)
-        
-        if ai_response.success:
+        if result['success']:
+            message = f"Sync completed! Created {result['events_created']} events, updated {result['events_updated']} events."
+            if result['errors']:
+                message += f" {len(result['errors'])} errors occurred."
+            
             return JsonResponse({
                 'success': True,
-                'response': ai_response.response,
-                'suggestions': ai_response.suggestions if hasattr(ai_response, 'suggestions') else [],
-                'context_used': ai_response.context_summary if hasattr(ai_response, 'context_summary') else None
+                'message': message,
+                'events_created': result['events_created'],
+                'events_updated': result['events_updated'],
+                'errors': result['errors']
             })
         else:
             return JsonResponse({
                 'success': False,
-                'error': ai_response.error_message,
-                'fallback_response': 'I apologize, but I\'m having trouble connecting to the AI service right now. Please try again later.'
+                'message': 'Sync failed. Please check your Google Calendar connection.'
             })
             
     except Exception as e:
-        logger.error(f"Error in AI chat: {e}")
+        logger.error(f"Error syncing to Google Calendar: {e}")
         return JsonResponse({
             'success': False,
-            'error': f'Chat service error: {str(e)}',
-            'fallback_response': 'I apologize, but I\'m experiencing technical difficulties. Please try again later.'
+            'message': f'Sync failed: {str(e)}'
+        })
+    finally:
+        # Always release the sync lock
+        logger.info(f"SYNC DEBUG: sync_to_google #{current_count} (Request ID: {request_id}) FINISHED - releasing lock for user {request.user.id}")
+        SyncLock.release_lock(request.user)
+
+
+@login_required
+@require_POST
+def sync_from_google(request):
+    """Sync events from Google Calendar."""
+    from .models import SyncLock
+    
+    # Try to acquire sync lock
+    lock_acquired, lock_instance = SyncLock.acquire_lock(request.user, timeout_minutes=5)
+    if not lock_acquired:
+        return JsonResponse({
+            'success': False,
+            'message': 'Another sync operation is already in progress. Please wait for it to complete.'
+        })
+    
+    try:
+        # Get date range from request
+        start_date = request.POST.get('start_date')
+        end_date = request.POST.get('end_date')
+        
+        if start_date:
+            start_date = datetime.fromisoformat(start_date)
+            start_date = timezone.make_aware(start_date)
+        else:
+            start_date = timezone.now()
+        
+        if end_date:
+            end_date = datetime.fromisoformat(end_date)
+            end_date = timezone.make_aware(end_date)
+        else:
+            end_date = start_date + timedelta(days=30)
+        
+        from .services.google_calendar_service import GoogleCalendarService
+        service = GoogleCalendarService(request.user)
+        result = service.sync_from_google(start_date, end_date)
+        
+        if result['success']:
+            message = f"Sync completed! Imported {result['events_created']} events, updated {result['events_updated']} tasks."
+            if result['errors']:
+                message += f" {len(result['errors'])} errors occurred."
+            
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'events_created': result['events_created'],
+                'events_updated': result['events_updated'],
+                'errors': result['errors']
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'Sync failed. Please check your Google Calendar connection.'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error syncing from Google Calendar: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Sync failed: {str(e)}'
+        })
+    finally:
+        # Always release the sync lock
+        SyncLock.release_lock(request.user)
+
+
+@login_required
+@require_POST
+def full_sync(request):
+    """Perform a full two-way sync."""
+    global sync_request_counter
+    sync_request_counter += 1
+    current_count = sync_request_counter
+    
+    logger.info(f"SYNC DEBUG: full_sync called #{current_count} for user {request.user.id} from IP {request.META.get('REMOTE_ADDR')}")
+    from .models import SyncLock
+    
+    # Try to acquire sync lock with longer timeout for full sync
+    lock_acquired, lock_instance = SyncLock.acquire_lock(request.user, timeout_minutes=10)
+    if not lock_acquired:
+        logger.warning(f"SYNC DEBUG: full_sync #{current_count} BLOCKED - lock already exists for user {request.user.id}")
+        return JsonResponse({
+            'success': False,
+            'message': 'Another sync operation is already in progress. Please wait for it to complete.'
+        })
+    
+    logger.info(f"SYNC DEBUG: full_sync #{current_count} PROCEEDING for user {request.user.id}")
+    try:
+        from .services.google_calendar_service import GoogleCalendarService
+        service = GoogleCalendarService(request.user)
+        
+        # First sync tasks to Google
+        to_google_result = service.sync_tasks_to_google()
+        
+        # Then sync from Google
+        from_google_result = service.sync_from_google()
+        
+        if to_google_result['success'] and from_google_result['success']:
+            message = (
+                f"Full sync completed! "
+                f"To Google: {to_google_result['events_created']} created, {to_google_result['events_updated']} updated. "
+                f"From Google: {from_google_result['events_created']} imported, {from_google_result['events_updated']} updated."
+            )
+            
+            total_errors = to_google_result['errors'] + from_google_result['errors']
+            if total_errors:
+                message += f" {len(total_errors)} errors occurred."
+            
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'to_google': to_google_result,
+                'from_google': from_google_result,
+                'errors': total_errors
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': 'Full sync partially failed. Please check sync logs.'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error performing full sync: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Full sync failed: {str(e)}'
+        })
+    finally:
+        # Always release the sync lock
+        logger.info(f"SYNC DEBUG: full_sync #{current_count} FINISHED - releasing lock for user {request.user.id}")
+        SyncLock.release_lock(request.user)
+
+
+@login_required
+def sync_status(request):
+    """Get sync status and recent logs."""
+    try:
+        from .models import GoogleCalendarIntegration, CalendarSyncLog
+        integration = GoogleCalendarIntegration.objects.filter(user=request.user).first()
+        recent_logs = CalendarSyncLog.objects.filter(user=request.user)[:5]
+        
+        logs_data = []
+        for log in recent_logs:
+            logs_data.append({
+                'id': log.id,
+                'sync_type': log.get_sync_type_display(),
+                'status': log.status,
+                'timestamp': log.timestamp.isoformat(),
+                'events_synced': log.events_synced,
+                'error_message': log.error_message,
+                'duration': str(log.sync_duration) if log.sync_duration else None
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'integration': {
+                'is_enabled': integration.is_enabled if integration else False,
+                'last_sync': integration.last_sync.isoformat() if integration and integration.last_sync else None,
+                'sync_direction': integration.sync_direction if integration else 'both'
+            },
+            'recent_logs': logs_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting sync status: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to get sync status: {str(e)}'
         })
 
 
-def _get_user_schedule_context(user):
-    """Get comprehensive user context for AI chat."""
-    from datetime import datetime, timedelta
-    
-    # Get tasks
-    all_tasks = list(user.tasks.all().order_by('deadline'))
-    scheduled_tasks = [t for t in all_tasks if t.is_scheduled]
-    unscheduled_tasks = [t for t in all_tasks if not t.is_scheduled]
-    
-    # Get time blocks
-    time_blocks = list(user.time_blocks.all().order_by('start_time'))
-    
-    # Get recent optimization history
-    recent_optimizations = []
+@login_required
+@require_POST
+def toggle_auto_sync(request):
+    """Enable/disable automatic syncing."""
     try:
-        from .models import OptimizationHistory
-        recent_optimizations = list(OptimizationHistory.objects.filter(
-            user=user
-        ).order_by('-timestamp')[:3])
-    except:
-        pass
+        from .models import GoogleCalendarIntegration
+        integration, created = GoogleCalendarIntegration.objects.get_or_create(
+            user=request.user
+        )
+        
+        integration.is_enabled = not integration.is_enabled
+        integration.save()
+        
+        return JsonResponse({
+            'success': True,
+            'is_enabled': integration.is_enabled,
+            'message': f"Auto-sync {'enabled' if integration.is_enabled else 'disabled'}"
+        })
+        
+    except Exception as e:
+        logger.error(f"Error toggling auto-sync: {e}")
+        return JsonResponse({
+            'success': False,
+            'message': f'Failed to toggle auto-sync: {str(e)}'
+        })
+
+
+class GoogleConnectionView(LoginRequiredMixin, TemplateView):
+    """View for managing Google account connection and troubleshooting."""
+    template_name = 'planner/google_connection.html'
     
-    # Calculate schedule metrics
-    today = timezone.now().date()
-    now = timezone.now()
-    
-    # Tasks due today and soon
-    tasks_due_today = [t for t in all_tasks if t.deadline.date() == today and t.status != 'completed']
-    tasks_due_this_week = [t for t in all_tasks if t.deadline.date() <= today + timedelta(days=7) and t.status != 'completed']
-    overdue_tasks = [t for t in all_tasks if t.deadline < now and t.status != 'completed']
-    
-    # Recent Pomodoro sessions
-    recent_pomodoros = []
-    try:
-        from .models import PomodoroSession
-        recent_pomodoros = list(PomodoroSession.objects.filter(
-            task__user=user,
-            start_time__gte=now - timedelta(days=7)
-        ).order_by('-start_time')[:5])
-    except:
-        pass
-    
-    # Compile context
-    context = {
-        'user_info': {
-            'username': user.username,
-            'email': user.email,
-            'timezone': str(timezone.get_current_timezone()),
-        },
-        'schedule_overview': {
-            'total_tasks': len(all_tasks),
-            'scheduled_tasks': len(scheduled_tasks),
-            'unscheduled_tasks': len(unscheduled_tasks),
-            'completed_tasks': len([t for t in all_tasks if t.status == 'completed']),
-            'total_time_blocks': len(time_blocks),
-            'tasks_due_today': len(tasks_due_today),
-            'tasks_due_this_week': len(tasks_due_this_week),
-            'overdue_tasks': len(overdue_tasks),
-        },
-        'current_tasks': [
-            {
-                'id': t.id,
-                'title': t.title,
-                'description': t.description or '',
-                'status': t.status,
-                'priority': t.priority,
-                'priority_display': t.get_priority_display(),
-                'deadline': t.deadline.isoformat(),
-                'estimated_hours': float(t.estimated_hours),
-                'actual_hours': float(t.actual_hours) if t.actual_hours else None,
-                'is_scheduled': t.is_scheduled,
-                'start_time': t.start_time.isoformat() if t.start_time else None,
-                'end_time': t.end_time.isoformat() if t.end_time else None,
-                'is_locked': t.is_locked,
-            } for t in all_tasks[:20]  # Limit to recent/important tasks
-        ],
-        'availability': [
-            {
-                'id': tb.id,
-                'start_time': tb.start_time.isoformat(),
-                'end_time': tb.end_time.isoformat(),
-                'is_recurring': tb.is_recurring,
-                'day_of_week': tb.day_of_week,
-                'day_name': tb.get_day_of_week_display() if tb.day_of_week is not None else None,
-                'duration_hours': tb.duration_hours,
-            } for tb in time_blocks
-        ],
-        'recent_activity': {
-            'recent_optimizations': [
-                {
-                    'timestamp': opt.timestamp.isoformat(),
-                    'scheduled_count': opt.scheduled_count,
-                    'unscheduled_count': opt.unscheduled_count,
-                    'utilization_rate': opt.utilization_rate,
-                    'was_overloaded': opt.was_overloaded,
-                } for opt in recent_optimizations
-            ],
-            'recent_pomodoros': [
-                {
-                    'task_title': session.task.title,
-                    'session_type': session.session_type,
-                    'duration': session.actual_duration or session.planned_duration,
-                    'start_time': session.start_time.isoformat(),
-                    'status': session.status,
-                } for session in recent_pomodoros
-            ]
-        },
-        'urgency_analysis': {
-            'overdue_tasks': [
-                {
-                    'title': t.title,
-                    'deadline': t.deadline.isoformat(),
-                    'priority': t.get_priority_display(),
-                    'estimated_hours': float(t.estimated_hours),
-                } for t in overdue_tasks[:5]
-            ],
-            'due_today': [
-                {
-                    'title': t.title,
-                    'deadline': t.deadline.isoformat(),
-                    'priority': t.get_priority_display(),
-                    'estimated_hours': float(t.estimated_hours),
-                } for t in tasks_due_today
-            ]
-        }
-    }
-    
-    return context
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        try:
+            from .models import GoogleCalendarIntegration
+            integration = GoogleCalendarIntegration.objects.get(user=self.request.user)
+        except:
+            integration = None
+        
+        context.update({
+            'integration': integration,
+        })
+        
+        return context

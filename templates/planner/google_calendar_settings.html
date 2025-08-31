@@ -1,0 +1,513 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Google Calendar Settings - TaskFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Google Calendar Integration
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            Sync your tasks with Google Calendar for seamless scheduling across all your devices.
+        </p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-6 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-50 border border-red-200 text-red-800{% else %}bg-green-50 border border-green-200 text-green-800{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Settings Panel -->
+        <div class="lg:col-span-2">
+            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                    Sync Settings
+                </h2>
+
+                {% if not has_google_token %}
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+                        <div class="flex items-start">
+                            <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-400">
+                                    Google Account Not Connected
+                                </h3>
+                                <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                                    You need to connect your Google account to enable calendar sync.
+                                    <a href="/accounts/google/login/" class="font-medium underline hover:no-underline">
+                                        Connect Google Account
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-900 dark:text-white">
+                                Enable Google Calendar Sync
+                            </label>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Automatically sync your tasks with Google Calendar
+                            </p>
+                        </div>
+                        <input type="checkbox" name="is_enabled" 
+                               {% if integration.is_enabled %}checked{% endif %}
+                               {% if not has_google_token %}disabled{% endif %}
+                               class="toggle-switch">
+                    </div>
+
+                    <div>
+                        <label for="sync_direction" class="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                            Sync Direction
+                        </label>
+                        <select name="sync_direction" id="sync_direction" 
+                                {% if not has_google_token %}disabled{% endif %}
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-background text-gray-900 dark:text-white">
+                            <option value="both" {% if integration.sync_direction == 'both' %}selected{% endif %}>
+                                Two-way sync (Tasks ↔ Google Calendar)
+                            </option>
+                            <option value="to_google" {% if integration.sync_direction == 'to_google' %}selected{% endif %}>
+                                Tasks → Google Calendar only
+                            </option>
+                            <option value="from_google" {% if integration.sync_direction == 'from_google' %}selected{% endif %}>
+                                Google Calendar → Tasks only
+                            </option>
+                        </select>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Choose how you want to sync between your tasks and Google Calendar
+                        </p>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" 
+                                {% if not has_google_token %}disabled{% endif %}
+                                class="btn-primary">
+                            Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Manual Sync Controls -->
+            {% if has_google_token %}
+            <div class="mt-8 bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                    Manual Sync
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button id="sync-to-google-btn" onclick="syncToGoogle()" class="btn-secondary flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16l-4-4m0 0l4-4m-4 4h18"></path>
+                        </svg>
+                        <span class="sync-text">Sync to Google</span>
+                    </button>
+                    
+                    <button id="sync-from-google-btn" onclick="syncFromGoogle()" class="btn-secondary flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3"></path>
+                        </svg>
+                        <span class="sync-text">Sync from Google</span>
+                    </button>
+                    
+                    <button id="full-sync-btn" onclick="fullSync()" class="btn-primary flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span class="sync-text">Full Sync</span>
+                    </button>
+                </div>
+
+                <div id="sync-result" class="mt-4 hidden">
+                    <!-- Sync results will be displayed here -->
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Status Panel -->
+        <div class="lg:col-span-1">
+            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+                    Sync Status
+                </h2>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Status</span>
+                        <span class="text-sm font-medium {% if integration.is_enabled %}text-green-600 dark:text-green-400{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                            {% if integration.is_enabled %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+
+                    {% if integration.last_sync %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Last Sync</span>
+                        <span class="text-sm text-gray-900 dark:text-white">
+                            {{ integration.last_sync|timesince }} ago
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Calendar ID</span>
+                        <span class="text-sm text-gray-900 dark:text-white truncate ml-2">
+                            {% if integration.google_calendar_id %}
+                                {{ integration.google_calendar_id|truncatechars:20 }}
+                            {% else %}
+                                Not set
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Sync Logs -->
+            {% if sync_logs %}
+            <div class="mt-6 bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Recent Syncs
+                </h3>
+
+                <div class="space-y-3">
+                    {% for log in sync_logs %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                        <div>
+                            <div class="flex items-center">
+                                {% if log.status == 'success' %}
+                                    <svg class="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                {% elif log.status == 'partial' %}
+                                    <svg class="w-4 h-4 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                {% else %}
+                                    <svg class="w-4 h-4 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                    </svg>
+                                {% endif %}
+                                <span class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ log.get_sync_type_display }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                                {{ log.timestamp|timesince }} ago • {{ log.events_synced }} events
+                            </p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Global sync state management
+let isSyncing = false;
+
+function disableSyncButtons() {
+    const buttons = ['sync-to-google-btn', 'sync-from-google-btn', 'full-sync-btn'];
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            const text = btn.querySelector('.sync-text');
+            if (text) {
+                text.textContent = 'Syncing...';
+            }
+        }
+    });
+}
+
+function enableSyncButtons() {
+    const buttonData = [
+        { id: 'sync-to-google-btn', text: 'Sync to Google' },
+        { id: 'sync-from-google-btn', text: 'Sync from Google' },
+        { id: 'full-sync-btn', text: 'Full Sync' }
+    ];
+    
+    buttonData.forEach(({ id, text }) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            const textEl = btn.querySelector('.sync-text');
+            if (textEl) {
+                textEl.textContent = text;
+            }
+        }
+    });
+}
+
+// Global sync call counter for debugging
+window.syncCallCounter = window.syncCallCounter || 0;
+window.activeSyncRequests = window.activeSyncRequests || new Set();
+window.currentSyncController = null;
+
+function updateSyncStatus() {
+    console.log('SYNC DEBUG: Success - will reload page in 2 seconds to show green checkmark');
+    // Reload page to show the new successful sync entry with green checkmark
+    setTimeout(() => location.reload(), 2000);
+}
+
+function syncToGoogle() {
+    window.syncCallCounter++;
+    const requestId = Math.random().toString(36).substr(2, 9);
+    console.log(`SYNC DEBUG: syncToGoogle function called #${window.syncCallCounter} - Request ID: ${requestId}`);
+    
+    // Check if we already have an active request with this ID or if syncing
+    if (isSyncing || window.activeSyncRequests.size > 0) {
+        console.log(`SYNC DEBUG: syncToGoogle #${window.syncCallCounter} ignored - already syncing (Request ID: ${requestId}). Active requests: ${window.activeSyncRequests.size}`);
+        return;
+    }
+    
+    // Cancel any previous request
+    if (window.currentSyncController) {
+        console.log('SYNC DEBUG: Aborting previous request');
+        window.currentSyncController.abort();
+    }
+    
+    // Create new AbortController for this request
+    window.currentSyncController = new AbortController();
+    
+    // Add this request to active requests
+    window.activeSyncRequests.add(requestId);
+    
+    isSyncing = true;
+    disableSyncButtons();
+    showSyncLoading('Syncing tasks to Google Calendar...');
+    
+    fetch('{% url "planner:sync_to_google" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-Request-ID': requestId  // Add unique request ID
+        },
+        signal: window.currentSyncController.signal  // Add abort signal
+    })
+    .then(response => {
+        console.log(`SYNC DEBUG: syncToGoogle response received for Request ID: ${requestId}`);
+        return response.json();
+    })
+    .then(data => {
+        console.log(`SYNC DEBUG: syncToGoogle data processed for Request ID: ${requestId}`, data);
+        console.log('SYNC DEBUG: About to call showSyncResult from settings page');
+        showSyncResult(data);
+        isSyncing = false;
+        // Remove this request from active requests
+        window.activeSyncRequests.delete(requestId);
+        enableSyncButtons();
+        // Clear controller
+        window.currentSyncController = null;
+        if (data.success) {
+            console.log('SYNC DEBUG: Success - updating sync status instead of page reload');
+            // Instead of reloading the entire page, just update the sync status
+            updateSyncStatus();
+        }
+    })
+    .catch(error => {
+        console.error(`SYNC DEBUG: syncToGoogle error for Request ID: ${requestId}:`, error);
+        // Remove this request from active requests
+        window.activeSyncRequests.delete(requestId);
+        
+        // Don't show error if request was aborted (user initiated another sync)
+        if (error.name !== 'AbortError') {
+            showSyncResult({
+                success: false,
+                message: 'Network error occurred'
+            });
+        } else {
+            console.log('SYNC DEBUG: Request was aborted, not showing error');
+        }
+        
+        isSyncing = false;
+        enableSyncButtons();
+        // Clear controller
+        window.currentSyncController = null;
+    });
+}
+
+function syncFromGoogle() {
+    if (isSyncing) {
+        console.log('Sync already in progress, ignoring request');
+        return;
+    }
+    
+    isSyncing = true;
+    disableSyncButtons();
+    showSyncLoading('Importing events from Google Calendar...');
+    
+    fetch('{% url "planner:sync_from_google" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSyncResult(data);
+        isSyncing = false;
+        enableSyncButtons();
+        if (data.success) {
+            console.log('SYNC DEBUG: syncFromGoogle success - updating sync status');
+            updateSyncStatus();
+        }
+    })
+    .catch(error => {
+        showSyncResult({
+            success: false,
+            message: 'Network error occurred'
+        });
+        isSyncing = false;
+        enableSyncButtons();
+    });
+}
+
+function fullSync() {
+    console.log('SYNC DEBUG: fullSync function called');
+    if (isSyncing) {
+        console.log('SYNC DEBUG: fullSync ignored - already syncing');
+        return;
+    }
+    
+    isSyncing = true;
+    disableSyncButtons();
+    showSyncLoading('Performing full two-way sync...');
+    
+    fetch('{% url "planner:full_sync" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => {
+        console.log('SYNC DEBUG: fullSync response received');
+        return response.json();
+    })
+    .then(data => {
+        showSyncResult(data);
+        isSyncing = false;
+        enableSyncButtons();
+        if (data.success) {
+            console.log('SYNC DEBUG: fullSync success - updating sync status');
+            updateSyncStatus();
+        }
+    })
+    .catch(error => {
+        console.error('SYNC DEBUG: fullSync error:', error);
+        showSyncResult({
+            success: false,
+            message: 'Network error occurred'
+        });
+        isSyncing = false;
+        enableSyncButtons();
+    });
+}
+
+function showSyncLoading(message) {
+    const resultDiv = document.getElementById('sync-result');
+    resultDiv.className = 'mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg';
+    resultDiv.innerHTML = `
+        <div class="flex items-center">
+            <svg class="animate-spin w-5 h-5 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-blue-800 dark:text-blue-400">${message}</span>
+        </div>
+    `;
+    resultDiv.classList.remove('hidden');
+}
+
+function showSyncResult(data) {
+    console.log('SYNC DEBUG: showSyncResult called from settings page with data:', data);
+    const resultDiv = document.getElementById('sync-result');
+    const isSuccess = data.success;
+    
+    resultDiv.className = `mt-4 p-4 rounded-lg ${
+        isSuccess 
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+    }`;
+    
+    const iconColor = isSuccess ? 'text-green-500' : 'text-red-500';
+    const textColor = isSuccess ? 'text-green-800 dark:text-green-400' : 'text-red-800 dark:text-red-400';
+    
+    const icon = isSuccess 
+        ? '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>'
+        : '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>';
+    
+    resultDiv.innerHTML = `
+        <div class="flex items-start">
+            <svg class="w-5 h-5 ${iconColor} mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                ${icon}
+            </svg>
+            <div>
+                <p class="${textColor} font-medium">${isSuccess ? 'Sync Completed' : 'Sync Failed'}</p>
+                <p class="${textColor} text-sm mt-1">${data.message}</p>
+            </div>
+        </div>
+    `;
+    
+    resultDiv.classList.remove('hidden');
+}
+</script>
+
+<style>
+.toggle-switch {
+    appearance: none;
+    width: 48px;
+    height: 24px;
+    background-color: #e5e7eb;
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.toggle-switch:checked {
+    background-color: #3b82f6;
+}
+
+.toggle-switch::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+}
+
+.toggle-switch:checked::before {
+    transform: translateX(24px);
+}
+
+.toggle-switch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+</style>
+{% endblock %}

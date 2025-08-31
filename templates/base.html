@@ -58,7 +58,7 @@
 			height: 100%;
 			object-fit: cover;
 			pointer-events: none;
-			opacity: 1;
+			opacity: 0.5;
 			filter: brightness(0.9) contrast(0.95);
 			border-radius: 0 !important;
 		}
@@ -97,8 +97,8 @@
 			object-fit: cover;
 			z-index: 3;
 			pointer-events: none;
-			opacity: 1;
-			filter: brightness(0.85) contrast(0.95);
+			opacity: 0.7;
+			filter: brightness(0.8) contrast(0.9);
 			border-radius: 0 !important;
 		}
 
@@ -109,7 +109,7 @@
 			transform: translate(-50%, -50%) scale(0.65);
 			pointer-events: none;
 			animation: animateGirl 10s linear infinite;
-			opacity: 1;
+			opacity: 0.6;
 			filter: brightness(0.9) contrast(0.95);
 			z-index: 2;
 			border-radius: 0 !important;
@@ -310,10 +310,6 @@
                 TaskFlow
             </h1>
             <nav class="hidden md:flex space-x-6">
-                <a href="{% url 'planner:dashboard' %}" 
-                   class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
-                    Dashboard
-                </a>
                 <a href="{% url 'planner:kanban' %}" 
                    class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
                     My Tasks
@@ -325,10 +321,6 @@
                 <a href="{% url 'planner:availability' %}" 
                    class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
                     Availability
-                </a>
-                <a href="{% url 'planner:ai_chat' %}" 
-                   class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
-                    AI Chat
                 </a>
             </nav>
         </div>
@@ -373,9 +365,9 @@
                            class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                             Pomodoro Timer
                         </a>
-                        <a href="{% url 'planner:task_list' %}" 
+                        <a href="{% url 'planner:google_calendar_settings' %}" 
                            class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                            All Tasks
+                            Google Calendar
                         </a>
                         <a href="{% url 'planner:notification_preferences' %}" 
                            class="block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
@@ -397,10 +389,6 @@
     <!-- Mobile Navigation -->
     <div class="md:hidden px-4 mt-4">
         <nav class="solid-card px-4 py-2 flex space-x-4 overflow-x-auto">
-            <a href="{% url 'planner:dashboard' %}" 
-               class="whitespace-nowrap text-sm text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
-                Dashboard
-            </a>
             <a href="{% url 'planner:kanban' %}" 
                class="whitespace-nowrap text-sm text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
                 My Tasks
@@ -412,10 +400,6 @@
             <a href="{% url 'planner:availability' %}" 
                class="whitespace-nowrap text-sm text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
                 Availability
-            </a>
-            <a href="{% url 'planner:ai_chat' %}" 
-               class="whitespace-nowrap text-sm text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors">
-                AI Chat
             </a>
         </nav>
     </div>

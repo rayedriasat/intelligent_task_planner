@@ -3,7 +3,7 @@
 {% block title %}Calendar - TaskFlow{% endblock %}
 
 {% block content %}
-<div class="h-full flex flex-col p-6" x-data="window.calendarData = calendarApp()" x-init="init(); window.calendarApp = $data">
+<div class="h-full flex flex-col p-6" x-data="calendarApp()" x-init="init()">>
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -16,24 +16,24 @@
         <div class="flex items-center space-x-4">
             <!-- Week Navigation -->
             <div class="flex items-center space-x-2">
-                <button @click="navigateWeek(-1)" 
-                        class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <a href="?week={{ prev_week|date:'Y-m-d' }}" 
+                   class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                     </svg>
-                </button>
+                </a>
                 
-                <button @click="goToToday()" 
-                        class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                <a href="?" 
+                   class="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
                     Today
-                </button>
+                </a>
                 
-                <button @click="navigateWeek(1)" 
-                        class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                <a href="?week={{ next_week|date:'Y-m-d' }}" 
+                   class="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                     <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                     </svg>
-                </button>
+                </a>
             </div>
             
             <!-- Re-optimize Button -->
@@ -64,6 +64,53 @@
                 </svg>
                 <span>Urgent Task</span>
             </button>
+            
+            <!-- Google Calendar Integration -->
+            {% if has_google_calendar %}
+            <div class="flex items-center space-x-2">
+                <!-- Sync Status Indicator -->
+                <div class="flex items-center">
+                    {% if google_integration.is_enabled %}
+                        <div class="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Synced</span>
+                    {% else %}
+                        <div class="w-2 h-2 bg-gray-400 rounded-full mr-2"></div>
+                        <span class="text-sm text-gray-600 dark:text-gray-400">Sync Off</span>
+                    {% endif %}
+                </div>
+                
+                <!-- Quick Sync Button -->
+                <button @click="quickSync()" 
+                        :disabled="isSyncing"
+                        class="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1">
+                    <svg class="w-4 h-4" :class="{ 'animate-spin': isSyncing }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    <span x-text="isSyncing ? 'Syncing...' : 'Sync'"></span>
+                </button>
+                
+                <!-- Calendar Settings Button -->
+                <a href="{% url 'planner:google_calendar_settings' %}" 
+                   class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </a>
+            </div>
+            {% else %}
+            <!-- Setup Google Calendar Button -->
+            <a href="{% url 'planner:google_calendar_settings' %}" 
+               class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1">
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                <span>Setup Google Calendar</span>
+            </a>
+            {% endif %}
         </div>
     </div>
 
@@ -88,15 +135,9 @@
             <div class="calendar-body">
                 <!-- Time Column -->
                 <div class="time-column">
-                    {% for hour in "6789101112131415161718192021222324"|make_list %}
-                    <div class="time-slot">
-                        <span class="time-label">
-                            {% if hour == "0" %}12 AM
-                            {% elif hour|add:0 <= 11 %}{{ hour|add:0 }}:00 AM
-                            {% elif hour == "12" %}12 PM
-                            {% else %}{{ hour|add:0|add:-12 }}:00 PM
-                            {% endif %}
-                        </span>
+                    {% for hour_data in hours %}
+                    <div class="time-slot" data-hour="{{ hour_data.hour }}">
+                        <span class="time-label">{{ hour_data.label }}</span>
                     </div>
                     {% endfor %}
                 </div>
@@ -106,12 +147,21 @@
                     {% for day in week_days %}
                     <div class="day-column" data-date="{{ day.date|date:'Y-m-d' }}">
                         <!-- Hour slots for this day -->
-                        {% for hour in "6789101112131415161718192021222324"|make_list %}
+                        {% for hour_data in hours %}
                         <div class="hour-slot" 
-                             data-hour="{{ hour }}"
+                             data-hour="{{ hour_data.hour }}"
+                             data-date="{{ day.date|date:'Y-m-d' }}"
                              @dragover.prevent="handleDragOver($event)"
-                             @drop="handleDrop($event, '{{ day.date|date:'Y-m-d' }}', {{ hour }})"
-                             @click="quickAddTask('{{ day.date|date:'Y-m-d' }}', {{ hour }})">
+                             @drop="handleDrop($event, '{{ day.date|date:'Y-m-d' }}', {{ hour_data.hour }})"
+                             @click="console.log('Clicked!'); openSchedulingModal('{{ day.date|date:'Y-m-d' }}', {{ hour_data.hour }})"
+                             class="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                             style="position: relative; z-index: 1;">
+                             <!-- Visual indicator for clickable area -->
+                             <div class="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-20 transition-opacity">
+                                 <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                 </svg>
+                             </div>
                         </div>
                         {% endfor %}
 
@@ -122,8 +172,8 @@
                              data-task-id="{{ task.id }}"
                              @dragstart="handleTaskDragStart($event, {{ task.id }})"
                              style="
-                                top: {{ task.start_time.hour|add:-6 }}rem;
-                                height: {{ task.estimated_hours|floatformat:1 }}rem;
+                                top: {{ task.position_top|floatformat:1 }}rem;
+                                height: {{ task.position_height|floatformat:1 }}rem;
                              ">
                             <div class="task-content">
                                 <div class="task-title">{{ task.title }}</div>
@@ -290,6 +340,143 @@
 
     <!-- Toast Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+    
+    <!-- Manual Scheduling Modal -->
+    <div x-show="showSchedulingModal" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+         @click.self="closeSchedulingModal()">
+        
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4"
+             @click.stop>
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                        Schedule Task
+                    </h3>
+                    <button @click="closeSchedulingModal()" 
+                            class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="mb-4">
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                        <span x-text="formatSchedulingDateTime()"></span>
+                    </p>
+                </div>
+                
+                <!-- Tab Selection -->
+                <div class="mb-4">
+                    <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 rounded-lg p-1">
+                        <button @click="schedulingTab = 'existing'" 
+                                :class="schedulingTab === 'existing' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow' : 'text-gray-600 dark:text-gray-400'"
+                                class="flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors">
+                            Schedule Existing
+                        </button>
+                        <button @click="schedulingTab = 'new'" 
+                                :class="schedulingTab === 'new' ? 'bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow' : 'text-gray-600 dark:text-gray-400'"
+                                class="flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors">
+                            Create New
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Schedule Existing Task -->
+                <div x-show="schedulingTab === 'existing'" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Select Task
+                        </label>
+                        <select x-model="selectedTaskId" 
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                            <option value="">Choose a task...</option>
+                            <template x-for="task in unscheduledTasks" :key="task.id">
+                                <option :value="task.id" x-text="`${task.title} (${task.estimated_hours}h)`"></option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button @click="closeSchedulingModal()" 
+                                class="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            Cancel
+                        </button>
+                        <button @click="scheduleExistingTask()" 
+                                :disabled="!selectedTaskId || isScheduling"
+                                :class="selectedTaskId && !isScheduling ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400'"
+                                class="flex-1 px-4 py-2 text-white rounded-md transition-colors disabled:cursor-not-allowed">
+                            <span x-show="!isScheduling">Schedule Task</span>
+                            <span x-show="isScheduling">Scheduling...</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Create New Task -->
+                <div x-show="schedulingTab === 'new'" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Task Title
+                        </label>
+                        <input type="text" x-model="newTaskTitle" 
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                               placeholder="Enter task title...">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Description (Optional)
+                        </label>
+                        <textarea x-model="newTaskDescription" 
+                                  class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                  rows="2" placeholder="Enter description..."></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Hours
+                            </label>
+                            <input type="number" x-model="newTaskHours" step="0.5" min="0.5" max="8"
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                                Priority
+                            </label>
+                            <select x-model="newTaskPriority"
+                                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                                <option value="1">High</option>
+                                <option value="2">Medium</option>
+                                <option value="3">Low</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-3">
+                        <button @click="closeSchedulingModal()" 
+                                class="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                            Cancel
+                        </button>
+                        <button @click="createAndScheduleTask()" 
+                                :disabled="!newTaskTitle.trim() || isScheduling"
+                                :class="newTaskTitle.trim() && !isScheduling ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-400'"
+                                class="flex-1 px-4 py-2 text-white rounded-md transition-colors disabled:cursor-not-allowed">
+                            <span x-show="!isScheduling">Create & Schedule</span>
+                            <span x-show="isScheduling">Creating...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     
     <!-- Sacrifice Mode Modal -->
     <div x-show="sacrificeMode" 
@@ -752,7 +939,10 @@
     opacity: 0;
     transition: opacity 0.15s ease;
     color: white;
-    hover:opacity-100;
+}
+
+.task-remove:hover {
+    opacity: 1;
 }
 
 .task-block:hover .task-remove {
@@ -857,6 +1047,18 @@ function calendarApp() {
         conflictingTasks: [],
         selectedSacrifices: [],
         targetDateTime: null,
+        
+        // Manual scheduling modal state
+        showSchedulingModal: false,
+        schedulingTab: 'existing',
+        selectedDate: null,
+        selectedHour: null,
+        selectedTaskId: '',
+        newTaskTitle: '',
+        newTaskDescription: '',
+        newTaskHours: 1.0,
+        newTaskPriority: 2,
+        isScheduling: false,
         
         init() {
             console.log('Calendar initialized');
@@ -995,12 +1197,20 @@ function calendarApp() {
         },
         
         navigateWeek(direction) {
+            console.log('Navigate week called with direction:', direction);
             const params = new URLSearchParams(window.location.search);
             const currentWeek = params.get('week') || new Date().toISOString().split('T')[0];
+            console.log('Current week:', currentWeek);
+            
             const date = new Date(currentWeek);
             date.setDate(date.getDate() + (direction * 7));
-            params.set('week', date.toISOString().split('T')[0]);
-            window.location.search = params.toString();
+            const newWeek = date.toISOString().split('T')[0];
+            console.log('New week:', newWeek);
+            
+            params.set('week', newWeek);
+            const newUrl = window.location.pathname + '?' + params.toString();
+            console.log('Navigating to:', newUrl);
+            window.location.href = newUrl;
         },
         
         goToToday() {
@@ -1082,17 +1292,129 @@ function calendarApp() {
             });
         },
         
+        // Manual Scheduling Functions
+        openSchedulingModal(date, hour) {
+            console.log('Opening scheduling modal for:', date, hour); // Debug
+            this.selectedDate = date;
+            this.selectedHour = hour;
+            this.showSchedulingModal = true;
+            this.schedulingTab = 'existing';
+            this.selectedTaskId = '';
+            this.newTaskTitle = '';
+            this.newTaskDescription = '';
+            this.newTaskHours = 1.0;
+            this.newTaskPriority = 2;
+        },
+        
+        closeSchedulingModal() {
+            this.showSchedulingModal = false;
+            this.selectedDate = null;
+            this.selectedHour = null;
+            this.isScheduling = false;
+        },
+        
+        formatSchedulingDateTime() {
+            if (!this.selectedDate || !this.selectedHour) return '';
+            
+            const date = new Date(this.selectedDate);
+            const hour = parseInt(this.selectedHour);
+            const options = { weekday: 'long', month: 'long', day: 'numeric' };
+            const dateStr = date.toLocaleDateString('en-US', options);
+            
+            let timeStr;
+            if (hour === 0) {
+                timeStr = '12:00 AM';
+            } else if (hour < 12) {
+                timeStr = `${hour}:00 AM`;
+            } else if (hour === 12) {
+                timeStr = '12:00 PM';
+            } else {
+                timeStr = `${hour - 12}:00 PM`;
+            }
+            
+            return `${dateStr} at ${timeStr}`;
+        },
+        
+        scheduleExistingTask() {
+            if (!this.selectedTaskId || this.isScheduling) return;
+            
+            this.isScheduling = true;
+            
+            fetch('{% url "planner:manual_schedule_task" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    task_id: this.selectedTaskId,
+                    date: this.selectedDate,
+                    hour: this.selectedHour
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.isScheduling = false;
+                
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    this.closeSchedulingModal();
+                    // Reload the page to show the scheduled task
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                this.isScheduling = false;
+                this.showToast('Network error occurred', 'error');
+                console.error('Scheduling error:', error);
+            });
+        },
+        
+        createAndScheduleTask() {
+            if (!this.newTaskTitle.trim() || this.isScheduling) return;
+            
+            this.isScheduling = true;
+            
+            fetch('{% url "planner:create_and_schedule_task" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({
+                    title: this.newTaskTitle.trim(),
+                    description: this.newTaskDescription.trim(),
+                    estimated_hours: this.newTaskHours,
+                    priority: this.newTaskPriority,
+                    date: this.selectedDate,
+                    hour: this.selectedHour
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.isScheduling = false;
+                
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    this.closeSchedulingModal();
+                    // Reload the page to show the new task
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                this.isScheduling = false;
+                this.showToast('Network error occurred', 'error');
+                console.error('Create and schedule error:', error);
+            });
+        },
+        
         quickAddTask(date, hour) {
-            // Quick task creation - can be enhanced later
-            const title = prompt('Task title:');
-            if (!title) return;
-            
-            const hours = prompt('Estimated hours:', '1');
-            if (!hours) return;
-            
-            // Create task and schedule it
-            // This would need a proper API endpoint
-            console.log(`Creating task "${title}" for ${hours}h at ${date} ${hour}:00`);
+            // Deprecated - now opens the scheduling modal
+            this.openSchedulingModal(date, hour);
         },
         
         reoptimizeSchedule() {
@@ -1147,6 +1469,7 @@ function calendarApp() {
         },
         
         showToast(message, type = 'info') {
+            console.log(`SYNC DEBUG: Calendar showToast called with message: "${message}", type: ${type}`);
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             
@@ -1428,7 +1751,95 @@ function calendarApp() {
                 console.error('Error applying AI suggestions:', error);
                 this.showToast('Network error while applying suggestions', 'error');
             });
-        }
+        },
+        
+        // Google Calendar Integration Functions
+        isSyncing: false,
+        
+        quickSync() {
+            console.log('SYNC DEBUG: quickSync function called from calendar page');
+            if (this.isSyncing) {
+                console.log('SYNC DEBUG: quickSync ignored - already syncing');
+                return;
+            }
+            
+            this.isSyncing = true;
+            
+            fetch('{% url "planner:full_sync" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                }
+            })
+            .then(response => {
+                console.log('SYNC DEBUG: quickSync response received');
+                return response.json();
+            })
+            .then(data => {
+                console.log('SYNC DEBUG: quickSync data processed');
+                this.isSyncing = false;
+                
+                if (data.success) {
+                    const total_events = (data.to_google?.events_created || 0) + 
+                                       (data.to_google?.events_updated || 0) + 
+                                       (data.from_google?.events_created || 0) + 
+                                       (data.from_google?.events_updated || 0);
+                    
+                    this.showToast(`Google Calendar sync completed! ${total_events} events processed.`, 'success');
+                    console.log('SYNC DEBUG: Calendar page showToast called for sync success');
+                    
+                    // Reload page after a short delay to show updated tasks
+                    console.log('SYNC DEBUG: Calendar page will reload in 2 seconds');
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    this.showToast('Google Calendar sync failed: ' + (data.message || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('SYNC DEBUG: quickSync error:', error);
+                this.isSyncing = false;
+                console.error('Error syncing with Google Calendar:', error);
+                this.showToast('Network error during Google Calendar sync', 'error');
+            });
+        },
+        
+        showToast(message, type = 'info') {
+            // Create toast notification
+            const toast = document.createElement('div');
+            toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full ${
+                type === 'success' ? 'bg-green-500 text-white' :
+                type === 'error' ? 'bg-red-500 text-white' :
+                'bg-blue-500 text-white'
+            }`;
+            toast.innerHTML = `
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        ${type === 'success' ? 
+                            '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>' :
+                            type === 'error' ?
+                            '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>' :
+                            '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>'
+                        }
+                    </svg>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // Animate in
+            setTimeout(() => {
+                toast.classList.remove('translate-x-full');
+            }, 100);
+            
+            // Remove after delay
+            setTimeout(() => {
+                toast.classList.add('translate-x-full');
+                setTimeout(() => {
+                    document.body.removeChild(toast);
+                }, 300);
+            }, 4000);
         }
     }
 }

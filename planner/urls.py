@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .manual_scheduling import manual_schedule_task, create_and_schedule_task, unschedule_task as manual_unschedule_task
 
 app_name = 'planner'
 
@@ -27,6 +28,11 @@ urlpatterns = [
     path('calendar/unschedule/', views.unschedule_task, name='unschedule_task'),
     path('calendar/reoptimize/', views.reoptimize_week, name='reoptimize_week'),
     path('calendar/undo-optimization/', views.undo_optimization, name='undo_optimization'),
+    
+    # Manual Scheduling
+    path('api/manual-schedule/', manual_schedule_task, name='manual_schedule_task'),
+    path('api/create-and-schedule/', create_and_schedule_task, name='create_and_schedule_task'),
+    path('api/manual-unschedule/', manual_unschedule_task, name='manual_unschedule_task'),
 
     
     # Time blocks
@@ -58,8 +64,15 @@ urlpatterns = [
     path('api/notifications/test/', views.test_notification, name='test_notification'),
     
     # AI Integration
-    path('ai-chat/', views.AIChatView.as_view(), name='ai_chat'),
-    path('api/ai-chat/', views.send_ai_chat_message, name='send_ai_chat_message'),
     path('api/ai-suggestions/', views.get_ai_scheduling_suggestions, name='get_ai_scheduling_suggestions'),
     path('api/ai-suggestions/apply/', views.apply_ai_suggestions, name='apply_ai_suggestions'),
+    
+    # Google Calendar Integration
+    path('google-calendar/settings/', views.GoogleCalendarSettingsView.as_view(), name='google_calendar_settings'),
+    path('google-calendar/connection/', views.GoogleConnectionView.as_view(), name='google_connection'),
+    path('google-calendar/sync-to/', views.sync_to_google, name='sync_to_google'),
+    path('google-calendar/sync-from/', views.sync_from_google, name='sync_from_google'),
+    path('google-calendar/full-sync/', views.full_sync, name='full_sync'),
+    path('google-calendar/status/', views.sync_status, name='sync_status'),
+    path('google-calendar/toggle-auto/', views.toggle_auto_sync, name='toggle_auto_sync'),
 ]
