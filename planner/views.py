@@ -790,6 +790,49 @@ def reoptimize_schedule(request):
 
 @login_required
 @require_POST
+def auto_schedule_all_tasks(request):
+    """Automatically schedule all unscheduled tasks."""
+    try:
+        engine = SchedulingEngine(request.user)
+        
+        # Get all unscheduled tasks
+        unscheduled_tasks = request.user.tasks.filter(
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        )
+        
+        if not unscheduled_tasks.exists():
+            return JsonResponse({
+                'success': True,
+                'message': 'No unscheduled tasks to schedule',
+                'scheduled_count': 0
+            })
+        
+        # Use the scheduling engine to schedule all tasks
+        result = engine.calculate_schedule_with_analysis()
+        
+        scheduled_count = len(result['scheduled_tasks'])
+        unscheduled_count = len(result['unscheduled_tasks'])
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Scheduled {scheduled_count} tasks automatically',
+            'scheduled_count': scheduled_count,
+            'unscheduled_count': unscheduled_count,
+            'utilization_rate': result.get('utilization_rate', 0),
+            'recommendations': result.get('overload_analysis', {}).get('recommendations', [])
+        })
+        
+    except Exception as e:
+        logger.error(f"Auto-scheduling error: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+
+@login_required
+@require_POST
 def update_task_time(request):
     """Update task time via drag and drop."""
     task_id = request.POST.get('task_id')

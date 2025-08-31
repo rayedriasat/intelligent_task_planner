@@ -1,9 +1,11 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Calendar - TaskFlow{% endblock %}
 
 {% block content %}
-<div class="h-full flex flex-col p-6" x-data="calendarApp()" x-init="init()">>
+{% csrf_token %}
+<div class="h-full flex flex-col p-6" x-data="calendarApp()" x-init="init()">
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -857,6 +859,7 @@
 .day-column {
     border-right: 1px solid #e5e7eb;
     position: relative;
+    min-height: 100%;
 }
 
 .day-column:last-child {
@@ -1193,7 +1196,34 @@ function calendarApp() {
         scheduleByPriority() {
             if (!confirm('Automatically schedule all unscheduled tasks by priority?')) return;
             
-            this.reoptimizeSchedule();
+            fetch('{% url "planner:auto_schedule_all_tasks" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    this.showToast(data.message, 'success');
+                    
+                    if (data.recommendations && data.recommendations.length > 0) {
+                        setTimeout(() => {
+                            const recommendations = data.recommendations.join('\n• ');
+                            alert(`Recommendations:\n• ${recommendations}`);
+                        }, 1500);
+                    }
+                    
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                this.showToast('Network error', 'error');
+            });
         },
         
         navigateWeek(direction) {
@@ -1802,44 +1832,6 @@ function calendarApp() {
                 console.error('Error syncing with Google Calendar:', error);
                 this.showToast('Network error during Google Calendar sync', 'error');
             });
-        },
-        
-        showToast(message, type = 'info') {
-            // Create toast notification
-            const toast = document.createElement('div');
-            toast.className = `fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-sm transform transition-all duration-300 translate-x-full ${
-                type === 'success' ? 'bg-green-500 text-white' :
-                type === 'error' ? 'bg-red-500 text-white' :
-                'bg-blue-500 text-white'
-            }`;
-            toast.innerHTML = `
-                <div class="flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                        ${type === 'success' ? 
-                            '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>' :
-                            type === 'error' ?
-                            '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>' :
-                            '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>'
-                        }
-                    </svg>
-                    <span>${message}</span>
-                </div>
-            `;
-            
-            document.body.appendChild(toast);
-            
-            // Animate in
-            setTimeout(() => {
-                toast.classList.remove('translate-x-full');
-            }, 100);
-            
-            // Remove after delay
-            setTimeout(() => {
-                toast.classList.add('translate-x-full');
-                setTimeout(() => {
-                    document.body.removeChild(toast);
-                }, 300);
-            }, 4000);
         }
     }
 }

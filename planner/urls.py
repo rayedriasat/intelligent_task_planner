@@ -28,6 +28,7 @@ urlpatterns = [
     path('calendar/unschedule/', views.unschedule_task, name='unschedule_task'),
     path('calendar/reoptimize/', views.reoptimize_week, name='reoptimize_week'),
     path('calendar/undo-optimization/', views.undo_optimization, name='undo_optimization'),
+    path('calendar/auto-schedule-all/', views.auto_schedule_all_tasks, name='auto_schedule_all_tasks'),
     
     # Manual Scheduling
     path('api/manual-schedule/', manual_schedule_task, name='manual_schedule_task'),

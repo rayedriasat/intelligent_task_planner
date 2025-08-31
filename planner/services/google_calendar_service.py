@@ -272,28 +272,26 @@ class GoogleCalendarService:
         if not end_time and task.estimated_hours:
             end_time = start_time + timedelta(hours=float(task.estimated_hours))
         
-        # Ensure we're working in the local timezone (no conversions)
+        # Tasks are already stored in the correct timezone, don't convert them
+        # Just use the stored times directly
         if timezone.is_aware(start_time):
-            # Convert to local time if needed
-            local_tz = timezone.get_current_timezone()
-            start_local = start_time.astimezone(local_tz)
-            end_local = end_time.astimezone(local_tz) if end_time else None
+            start_local = start_time
+            end_local = end_time if end_time else None
         else:
             # Make timezone-aware in local timezone
             start_local = timezone.make_aware(start_time)
             end_local = timezone.make_aware(end_time) if end_time else None
         
-        # Format for Google Calendar - use local timezone consistently
+        # Format for Google Calendar API using ISO format like Google sends to us
+        # This ensures consistent timezone handling in both directions
         event_data = {
             'summary': task.title,
             'description': f"{task.description or ''}\n\nPriority: {task.get_priority_display()}\nStatus: {task.get_status_display()}",
             'start': {
-                'dateTime': start_local.strftime('%Y-%m-%dT%H:%M:%S'),
-                'timeZone': 'America/New_York',  # Force consistent timezone
+                'dateTime': start_local.isoformat(),  # Use ISO format with timezone offset
             },
             'end': {
-                'dateTime': end_local.strftime('%Y-%m-%dT%H:%M:%S'),
-                'timeZone': 'America/New_York',  # Force consistent timezone
+                'dateTime': end_local.isoformat(),  # Use ISO format with timezone offset
             },
             'colorId': self._get_color_for_priority(task.priority),
             'extendedProperties': {
