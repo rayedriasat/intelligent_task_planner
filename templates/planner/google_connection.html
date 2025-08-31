@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">Google Account Connection</h1>
+        
+        <div class="bg-white shadow-md rounded-lg p-6 mb-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Current Status</h2>
+            
+            {% if user.socialaccount_set.all %}
+                <div class="mb-4">
+                    <div class="flex items-center mb-2">
+                        <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <span class="text-green-600 font-medium">Google account connected</span>
+                    </div>
+                    <p class="text-gray-600 text-sm">Account: {{ user.email }}</p>
+                    
+                    {% if integration and integration.is_enabled %}
+                        <div class="flex items-center mt-2">
+                            <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-green-600 font-medium">Google Calendar integration active</span>
+                        </div>
+                    {% else %}
+                        <div class="flex items-center mt-2">
+                            <svg class="w-5 h-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="text-yellow-600 font-medium">Google Calendar permissions needed</span>
+                        </div>
+                        <p class="text-gray-600 text-sm mt-1">Calendar sync is not active. Please re-authenticate to grant calendar permissions.</p>
+                    {% endif %}
+                </div>
+            {% else %}
+                <div class="flex items-center mb-4">
+                    <svg class="w-5 h-5 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-red-600 font-medium">No Google account connected</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="bg-white shadow-md rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Actions</h2>
+            
+            {% if user.socialaccount_set.all %}
+                <div class="space-y-4">
+                    <div>
+                        <p class="text-gray-600 mb-3">To fix calendar synchronization issues, disconnect and reconnect your Google account:</p>
+                        
+                        <form method="post" action="{% url 'socialaccount_connections' %}" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="account" value="{{ user.socialaccount_set.first.pk }}">
+                            <input type="hidden" name="action_remove" value="1">
+                            <button type="submit" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-md mr-3">
+                                Disconnect Google Account
+                            </button>
+                        </form>
+                        
+                        <a href="{% url 'google_calendar_settings' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md">
+                            Calendar Settings
+                        </a>
+                    </div>
+                    
+                    <div class="border-t pt-4">
+                        <p class="text-gray-600 mb-3">Or re-authenticate to refresh permissions:</p>
+                        <a href="{% url 'socialaccount_login' provider='google' %}" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md">
+                            Re-authenticate with Google
+                        </a>
+                    </div>
+                </div>
+            {% else %}
+                <div>
+                    <p class="text-gray-600 mb-3">Connect your Google account to enable calendar synchronization:</p>
+                    <a href="{% url 'socialaccount_login' provider='google' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md">
+                        Connect Google Account
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mt-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm text-yellow-700">
+                        <strong>Note:</strong> When you authenticate with Google, make sure to grant calendar permissions when prompted. 
+                        You may need to click "Advanced" and then "Go to Intelligent Task Planner (unsafe)" if you see a warning.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

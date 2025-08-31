@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
+from datetime import timedelta
 
 
 class Task(models.Model):
@@ -381,3 +382,183 @@ def create_notification_preferences(sender, instance, created, **kwargs):
     """Create notification preferences for new users."""
     if created:
         NotificationPreference.objects.create(user=instance)
+
+
+# Signal to handle Google social account connection
+from allauth.socialaccount.signals import social_account_added
+
+@receiver(social_account_added)
+def setup_google_calendar_on_connect(sender, request, sociallogin, **kwargs):
+    """Set up Google Calendar integration when user connects Google account."""
+    if sociallogin.account.provider == 'google':
+        try:
+            from .services.google_calendar_service import GoogleCalendarService
+            
+            user = sociallogin.user
+            
+            # Create or update Google Calendar integration
+            integration, created = GoogleCalendarIntegration.objects.get_or_create(
+                user=user,
+                defaults={
+                    'is_enabled': True,
+                    'sync_direction': 'both',
+                }
+            )
+            
+            # Try to get primary calendar ID
+            try:
+                service = GoogleCalendarService(user)
+                primary_calendar_id = service.get_primary_calendar()
+                integration.google_calendar_id = primary_calendar_id
+                integration.is_enabled = True
+                integration.save()
+                
+                if request:
+                    from django.contrib import messages
+                    messages.success(
+                        request,
+                        'Google Calendar integration enabled! Your tasks will now sync with Google Calendar.'
+                    )
+                    
+            except Exception as e:
+                # Calendar API might not be immediately available
+                integration.is_enabled = False
+                integration.save()
+                
+                if request:
+                    from django.contrib import messages
+                    messages.warning(
+                        request,
+                        'Google account connected! Please visit Google Calendar settings to complete calendar setup.'
+                    )
+                    
+        except Exception as e:
+            # Don't break the login flow
+            pass
+
+
+# Google Calendar Integration Models
+
+class GoogleCalendarIntegration(models.Model):
+    """Store Google Calendar integration settings for each user."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='google_calendar')
+    google_calendar_id = models.CharField(max_length=255, help_text="Primary Google Calendar ID")
+    is_enabled = models.BooleanField(default=True)
+    sync_direction = models.CharField(
+        max_length=20,
+        choices=[
+            ('both', 'Two-way sync'),
+            ('to_google', 'Tasks to Google only'),
+            ('from_google', 'Google to Tasks only'),
+        ],
+        default='both'
+    )
+    last_sync = models.DateTimeField(null=True, blank=True)
+    sync_token = models.TextField(blank=True, help_text="Token for incremental sync")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Google Calendar for {self.user.username}"
+
+
+class GoogleCalendarEvent(models.Model):
+    """Track the relationship between tasks and Google Calendar events."""
+    task = models.OneToOneField(Task, on_delete=models.CASCADE, related_name='google_event')
+    google_event_id = models.CharField(max_length=255, unique=True)
+    google_calendar_id = models.CharField(max_length=255)
+    last_updated = models.DateTimeField(auto_now=True)
+    etag = models.CharField(max_length=255, blank=True, help_text="Google Calendar event etag for optimistic locking")
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['google_event_id']),
+            models.Index(fields=['google_calendar_id']),
+        ]
+
+    def __str__(self):
+        return f"Google Event for {self.task.title}"
+
+
+class CalendarSyncLog(models.Model):
+    """Log calendar sync operations for debugging and monitoring."""
+    SYNC_TYPES = [
+        ('manual', 'Manual Sync'),
+        ('automatic', 'Automatic Sync'),
+        ('webhook', 'Webhook Triggered'),
+    ]
+
+    STATUS_CHOICES = [
+        ('success', 'Success'),
+        ('partial', 'Partial Success'),
+        ('failed', 'Failed'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sync_logs')
+    sync_type = models.CharField(max_length=20, choices=SYNC_TYPES, default='manual')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    events_synced = models.IntegerField(default=0)
+    events_created = models.IntegerField(default=0)
+    events_updated = models.IntegerField(default=0)
+    events_deleted = models.IntegerField(default=0)
+    error_message = models.TextField(blank=True)
+    sync_duration = models.DurationField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"{self.get_sync_type_display()} - {self.status} ({self.timestamp})"
+
+
+class SyncLock(models.Model):
+    """Database-based sync lock to prevent concurrent Google Calendar syncs."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='sync_lock')
+    locked_at = models.DateTimeField(auto_now_add=True)
+    process_id = models.CharField(max_length=100, blank=True)  # Can store request ID or process info
+    
+    class Meta:
+        db_table = 'planner_sync_lock'
+    
+    @classmethod
+    def acquire_lock(cls, user, timeout_minutes=5):
+        """
+        Try to acquire a sync lock for the user.
+        Returns (success, lock_instance) tuple.
+        """
+        from django.db import transaction
+        
+        try:
+            with transaction.atomic():
+                # Clean up expired locks first
+                cutoff_time = timezone.now() - timedelta(minutes=timeout_minutes)
+                cls.objects.filter(locked_at__lt=cutoff_time).delete()
+                
+                # Try to create a new lock
+                lock, created = cls.objects.get_or_create(
+                    user=user,
+                    defaults={'locked_at': timezone.now()}
+                )
+                
+                if created:
+                    return True, lock
+                else:
+                    # Lock already exists and hasn't expired
+                    return False, lock
+                    
+        except Exception:
+            # If there's any database error, allow the operation
+            return True, None
+    
+    @classmethod
+    def release_lock(cls, user):
+        """Release the sync lock for the user."""
+        try:
+            cls.objects.filter(user=user).delete()
+        except Exception:
+            # If there's any error releasing the lock, ignore it
+            pass
+    
+    def __str__(self):
+        return f"Sync lock for {self.user.username} at {self.locked_at}"
