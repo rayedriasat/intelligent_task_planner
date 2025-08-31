@@ -5,7 +5,35 @@
 
 {% block content %}
 {% csrf_token %}
+<!-- Ensure CSRF token is available for JavaScript -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+<!-- DEBUG: Show data being passed to template -->
+<div style="background: yellow; padding: 10px; margin: 10px; color: black; border: 2px solid red;">
+    <strong>DEBUG INFO:</strong><br>
+    Current user: {{ user.username }}<br>
+    Unscheduled tasks count: {{ unscheduled_tasks.count }}<br>
+    Tasks: 
+    {% for task in unscheduled_tasks %}
+        {{ task.title }} ({{ task.estimated_hours }}h, P{{ task.priority }}){% if not forloop.last %}, {% endif %}
+    {% empty %}
+        NONE FOUND
+    {% endfor %}
+</div>
+
 <div class="h-full flex flex-col p-6" x-data="calendarApp()" x-init="init()">
+    
+    <!-- DEBUG: Alpine.js reactive test (inside component scope) -->
+    <div style="background: lightblue; padding: 10px; margin: 10px; color: black; border: 2px solid blue;">
+        <strong>ALPINE.JS TEST:</strong><br>
+        Alpine working: <span x-text="'YES - Alpine.js is active!'">NO - Alpine.js not working</span><br>
+        Unscheduled tasks loaded: <span x-text="unscheduledTasks.length">0</span><br>
+        Filtered tasks: <span x-text="filteredTasks.length">0</span><br>
+        <button @click="alert('Alpine button works!')" style="background: green; color: white; padding: 5px;">Test Button</button>
+        <br><br>
+        <button @click="reoptimizeSchedule()" style="background: blue; color: white; padding: 5px;">Test Re-optimize</button>
+        <button @click="getAISuggestions()" style="background: purple; color: white; padding: 5px;">Test AI</button>
+    </div>
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -56,6 +84,12 @@
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                 </svg>
                 <span x-text="aiLoading ? 'Getting AI Suggestions...' : 'Get AI Suggestion'"></span>
+            </button>
+            
+            <!-- Test Button (for debugging) -->
+            <button @click="console.log('TEST: Simple Alpine.js click works!'); alert('Alpine.js is working!')" 
+                    class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors">
+                TEST
             </button>
             
             <!-- Add Urgent Task Button -->
@@ -1064,8 +1098,43 @@ function calendarApp() {
         isScheduling: false,
         
         init() {
-            console.log('Calendar initialized');
+            console.log('✅ Calendar component initialized successfully!');
+            console.log('Alpine.js version:', window.Alpine ? 'loaded' : 'NOT loaded');
+            console.log('CSRF token available:', this.getCSRFToken() ? 'yes' : 'NO');
+            console.log('Component context type:', typeof this);
             this.loadUnscheduledTasks();
+            
+            // Test if buttons are working - add a simple test
+            setTimeout(() => {
+                this.testButtonsWork();
+            }, 1000);
+        },
+        
+        getCSRFToken() {
+            // Try multiple ways to get CSRF token
+            let token = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            if (!token) {
+                token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+            }
+            if (!token) {
+                token = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+            }
+            return token;
+        },
+        
+        testButtonsWork() {
+            console.log('Testing button functionality...');
+            console.log('Re-optimize button exists:', !!document.querySelector('button[\\@click*="reoptimizeSchedule"]'));
+            console.log('AI suggestion button exists:', !!document.querySelector('button[\\@click*="getAISuggestions"]'));
+            console.log('Urgent task button exists:', !!document.querySelector('button[\\@click*="promptUrgentTask"]'));
+            console.log('Sync button exists:', !!document.querySelector('button[\\@click*="quickSync"]'));
+            
+            // Test if functions are accessible in this context
+            console.log('Functions accessible:');
+            console.log('- reoptimizeSchedule:', typeof this.reoptimizeSchedule);
+            console.log('- getAISuggestions:', typeof this.getAISuggestions);
+            console.log('- promptUrgentTask:', typeof this.promptUrgentTask);
+            console.log('- quickSync:', typeof this.quickSync);
         },
         
         loadUnscheduledTasks() {
@@ -1080,11 +1149,17 @@ function calendarApp() {
                     priority: {{ task.priority }},
                     deadline: "{{ task.deadline|date:'Y-m-d' }}",
                     created_at: "{{ task.created_at|date:'Y-m-d' }}",
-                    is_urgent: {% if task.deadline|timeuntil|cut:' ' < '2 days' %}true{% else %}false{% endif %}
+                    is_urgent: {% if task.deadline and task.deadline|timeuntil|cut:' ' < '2 days' %}true{% else %}false{% endif %}
                 },
+                {% empty %}
+                // NO TASKS FOUND IN TEMPLATE
                 {% endfor %}
             ];
             
+            console.log('DEBUG: Raw template data count: {{ unscheduled_tasks.count }}');
+            
+            console.log('Loaded unscheduled tasks:', unscheduledData.length, 'tasks');
+            console.log('Unscheduled tasks data:', unscheduledData);
             this.unscheduledTasks = unscheduledData;
             this.calculateAnalytics();
             this.applyFilters();
@@ -1120,6 +1195,7 @@ function calendarApp() {
             });
             
             this.filteredTasks = filtered;
+            console.log('Filtered tasks:', this.filteredTasks.length, 'of', this.unscheduledTasks.length);
         },
         
         formatDate(dateStr) {
@@ -1142,12 +1218,13 @@ function calendarApp() {
         },
         
         quickScheduleTask(taskId) {
+            console.log('DEBUG: quickScheduleTask() called with taskId:', taskId);
             // Find next available slot and schedule task there
             fetch('{% url "planner:quick_schedule_task" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: `task_id=${taskId}`
             })
@@ -1179,7 +1256,7 @@ function calendarApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 }
             })
             .then(response => response.json())
@@ -1200,7 +1277,7 @@ function calendarApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 }
             })
             .then(response => response.json())
@@ -1281,7 +1358,7 @@ function calendarApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: `task_id=${taskId}&start_time=${startTime.toISOString()}`
             })
@@ -1307,7 +1384,7 @@ function calendarApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: `task_id=${taskId}`
             })
@@ -1374,7 +1451,7 @@ function calendarApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: JSON.stringify({
                     task_id: this.selectedTaskId,
@@ -1411,7 +1488,7 @@ function calendarApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: JSON.stringify({
                     title: this.newTaskTitle.trim(),
@@ -1448,13 +1525,14 @@ function calendarApp() {
         },
         
         reoptimizeSchedule() {
+            console.log('DEBUG: reoptimizeSchedule() called');
             this.isOptimizing = true;
             
             fetch('{% url "planner:reoptimize_week" %}', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 }
             })
             .then(response => response.json())
@@ -1566,7 +1644,7 @@ function calendarApp() {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: `optimization_id=${optimizationId}`
             })
@@ -1608,7 +1686,7 @@ function calendarApp() {
             fetch('{% url "planner:create_urgent_task" %}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: formData
             })
@@ -1666,7 +1744,7 @@ function calendarApp() {
             fetch('{% url "planner:sacrifice_tasks" %}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: formData
             })
@@ -1687,6 +1765,7 @@ function calendarApp() {
         },
         
         promptUrgentTask() {
+            console.log('DEBUG: promptUrgentTask() called');
             const title = prompt('Enter urgent task title:');
             if (!title) return;
             
@@ -1707,6 +1786,7 @@ function calendarApp() {
         
         // AI Suggestions Functions
         getAISuggestions() {
+            console.log('DEBUG: getAISuggestions() called');
             this.aiLoading = true;
             this.showAISuggestions = true;
             this.aiSuggestions = [];
@@ -1716,7 +1796,7 @@ function calendarApp() {
                 method: 'GET',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 }
             })
             .then(response => response.json())
@@ -1763,7 +1843,7 @@ function calendarApp() {
             fetch('{% url "planner:apply_ai_suggestions" %}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    'X-CSRFToken': this.getCSRFToken()
                 },
                 body: formData
             })
@@ -1787,6 +1867,7 @@ function calendarApp() {
         isSyncing: false,
         
         quickSync() {
+            console.log('DEBUG: quickSync() called');
             console.log('SYNC DEBUG: quickSync function called from calendar page');
             if (this.isSyncing) {
                 console.log('SYNC DEBUG: quickSync ignored - already syncing');
@@ -1798,7 +1879,7 @@ function calendarApp() {
             fetch('{% url "planner:full_sync" %}', {
                 method: 'POST',
                 headers: {
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'X-CSRFToken': this.getCSRFToken(),
                     'Content-Type': 'application/x-www-form-urlencoded',
                 }
             })
@@ -1837,10 +1918,15 @@ function calendarApp() {
 }
 
 // Make calendarApp globally accessible for undo functionality
-window.calendarApp = null;
 document.addEventListener('alpine:init', () => {
-    Alpine.store('calendar', calendarApp());
-    window.calendarApp = Alpine.store('calendar');
+    console.log('Alpine initialized - calendarApp function available:', typeof calendarApp);
+    // Store a reference for the undo functionality after Alpine creates the component
+    setTimeout(() => {
+        const calendarElement = document.querySelector('[x-data*="calendarApp"]');
+        if (calendarElement) {
+            window.calendarApp = Alpine.$data(calendarElement);
+        }
+    }, 100);
 });
 </script>
 {% endblock %}
