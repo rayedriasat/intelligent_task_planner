@@ -1,0 +1,26 @@
+# Example environment variables for production deployment
+# Copy this file to .env and fill in your actual values
+
+# Django settings
+SECRET_KEY=your-secret-key-here-generate-a-new-one
+DEBUG=False
+
+# Database settings (MySQL)
+DB_NAME=your_database_name
+DB_USER=your_database_user
+DB_PASSWORD=your_database_password
+DB_HOST=your_database_host
+DB_PORT=3306
+
+# Google OAuth settings
+GOOGLE_OAUTH2_CLIENT_ID=your_google_client_id
+GOOGLE_OAUTH2_CLIENT_SECRET=your_google_client_secret
+
+# Email settings (for notifications)
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_HOST_USER=your_email@gmail.com
+EMAIL_HOST_PASSWORD=your_app_password
+
+# OpenRouter API (for AI features)
+OPENROUTER_API_KEY=your_openrouter_api_key
