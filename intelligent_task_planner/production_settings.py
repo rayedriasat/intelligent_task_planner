@@ -17,18 +17,19 @@ ALLOWED_HOSTS = [
 ]
 
 # Database configuration for production
-# You'll need to update these with your actual database credentials
+# PythonAnywhere MySQL database
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('DB_NAME'),
-        'USER': os.environ.get('DB_USER'),
+        'NAME': os.environ.get('DB_NAME', 'Rayed$task_planner'),
+        'USER': os.environ.get('DB_USER', 'Rayed'),
         'PASSWORD': os.environ.get('DB_PASSWORD'),
-        'HOST': os.environ.get('DB_HOST'),
+        'HOST': os.environ.get('DB_HOST', 'Rayed.mysql.pythonanywhere-services.com'),
         'PORT': os.environ.get('DB_PORT', '3306'),
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
             'charset': 'utf8mb4',
+            'connect_timeout': 20,
         },
     }
 }

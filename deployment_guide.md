@@ -33,7 +33,7 @@ This guide will help you deploy your Django application to PythonAnywhere with a
 ### Method 1: Git (Recommended)
 1. In PythonAnywhere console, run:
 ```bash
-git clone https://github.com/yourusername/intelligent_task_planner.git
+git clone https://github.com/Rayed/intelligent_task_planner.git
 cd intelligent_task_planner
 ```
 
@@ -118,22 +118,22 @@ python manage.py collectstatic --settings=intelligent_task_planner.production_se
 
 ### Source code:
 ```
-/home/yourusername/intelligent_task_planner
+/home/Rayed/intelligent_task_planner
 ```
 
 ### Working directory:
 ```
-/home/yourusername/intelligent_task_planner
+/home/Rayed/intelligent_task_planner
 ```
 
 ### WSGI configuration file:
 ```
-/home/yourusername/intelligent_task_planner/wsgi_production.py
+/home/Rayed/intelligent_task_planner/wsgi_production.py
 ```
 
 ### Virtual environment:
 ```
-/home/yourusername/intelligent_task_planner/venv
+/home/Rayed/intelligent_task_planner/venv
 ```
 
 ## Step 9: Configure Static Files
@@ -142,8 +142,8 @@ In the "Web" tab, add these static file mappings:
 
 | URL | Directory |
 |-----|-----------|
-| `/static/` | `/home/yourusername/intelligent_task_planner/staticfiles/` |
-| `/media/` | `/home/yourusername/intelligent_task_planner/media/` |
+| `/static/` | `/home/Rayed/intelligent_task_planner/staticfiles/` |
+| `/media/` | `/home/Rayed/intelligent_task_planner/media/` |
 
 ## Step 10: Set Up Google OAuth
 
@@ -152,14 +152,14 @@ In the "Web" tab, add these static file mappings:
 3. Enable Google Calendar API and Google+ API
 4. Create OAuth 2.0 credentials
 5. Add your PythonAnywhere domain to authorized domains:
-   - `yourusername.pythonanywhere.com`
+   - `Rayed.pythonanywhere.com`
 6. Add redirect URIs:
-   - `https://yourusername.pythonanywhere.com/accounts/google/login/callback/`
+   - `https://Rayed.pythonanywhere.com/accounts/google/login/callback/`
 
 ## Step 11: Test Your Deployment
 
 1. Click "Reload" in the Web tab
-2. Visit `https://yourusername.pythonanywhere.com`
+2. Visit `https://Rayed.pythonanywhere.com`
 3. Test user registration and login
 4. Test Google Calendar integration
 
@@ -168,7 +168,7 @@ In the "Web" tab, add these static file mappings:
 For Django-Q2 task processing:
 1. Go to the "Tasks" tab in PythonAnywhere
 2. Create a new scheduled task:
-   - Command: `/home/yourusername/intelligent_task_planner/venv/bin/python /home/yourusername/intelligent_task_planner/manage.py qcluster --settings=intelligent_task_planner.production_settings`
+   - Command: `/home/Rayed/intelligent_task_planner/venv/bin/python /home/Rayed/intelligent_task_planner/manage.py qcluster --settings=intelligent_task_planner.production_settings`
    - Hour: Leave blank (runs continuously)
    - Minute: Leave blank
 
@@ -183,7 +183,7 @@ For Django-Q2 task processing:
 
 ### Logs:
 - Check error logs in PythonAnywhere Web tab
-- Check Django logs in `/home/yourusername/intelligent_task_planner/logs/`
+- Check Django logs in `/home/Rayed/intelligent_task_planner/logs/`
 
 ## Free Tier Limitations
 
