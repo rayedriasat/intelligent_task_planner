@@ -367,7 +367,7 @@ def reoptimize_week(request):
         optimization_history.scheduled_count = len(result['scheduled_tasks'])
         optimization_history.unscheduled_count = len(result['unscheduled_tasks'])
         optimization_history.utilization_rate = result['utilization_rate']
-        optimization_history.total_hours_scheduled = result['total_hours_scheduled']
+        optimization_history.total_hours_scheduled = result['total_scheduled_hours']
         optimization_history.was_overloaded = result['overload_analysis']['is_overloaded']
         
         if result['overload_analysis']['is_overloaded']:
@@ -813,6 +813,11 @@ def auto_schedule_all_tasks(request):
         
         scheduled_count = len(result['scheduled_tasks'])
         unscheduled_count = len(result['unscheduled_tasks'])
+        
+        # Save scheduled tasks to database
+        with transaction.atomic():
+            for task in result['scheduled_tasks']:
+                task.save()
         
         return JsonResponse({
             'success': True,

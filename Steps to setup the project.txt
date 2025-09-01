@@ -1,0 +1,46 @@
+Steps to setup the project:
+1. Open terminal and install uv by running:
+winget install --id=astral-sh.uv  -e
+2. Install MySQL workbench (sir laughed at Xampp, so workbench it is):
+https://dev.mysql.com/downloads/installer/
+We only need the MySQL and the workbench.
+
+3. Setup MySQL: 
+# Database Configuration (MySQL)
+DB_NAME=task_planner
+DB_USER=root
+DB_PASSWORD=root
+DB_HOST=localhost
+DB_PORT=3306
+
+You must create the database by running: 
+Create Database task_planner;
+
+Sometimes the MySQL server stops running, so we need to start it manually by:
+Open windows Task Manager > Services: Search MySQL80, right click it and hit start or restart.
+
+While the MySQL server is running in the background we can go ahead with the next steps.
+
+4. Git clone my repo:
+(You need git installed to run this, install by: winget install --id Git.Git -e --source winget)
+
+Open any empty folder (new folder) > open terminal in that directory,
+run:
+git clone https://github.com/rayedriasat/intelligent_task_planner.git
+
+5. Install the dependencies, run: 
+uv sync
+And you need to add the .env file I sent in the Group in the project root.
+
+6. Activate the venv, run:
+.venv\Scripts\Activate.ps1
+
+7. python manage.py makemigrations
+8. python manage.py migrate
+9. All done, now lets start the server:
+python manage.py runserver
+
+
+10 optional: If changing any CSS styles or html designs:
+run tailwind build command to apply css changes:
+npm run build-css
