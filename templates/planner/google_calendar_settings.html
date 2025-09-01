@@ -25,8 +25,8 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Settings Panel -->
         <div class="lg:col-span-2">
-            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
                     Sync Settings
                 </h2>
 
@@ -56,7 +56,7 @@
                     
                     <div class="flex items-center justify-between">
                         <div>
-                            <label class="text-sm font-medium text-gray-900 dark:text-white">
+                            <label class="text-sm font-medium text-gray-900 dark:text-gray-100">
                                 Enable Google Calendar Sync
                             </label>
                             <p class="text-sm text-gray-500 dark:text-gray-400">
@@ -70,12 +70,12 @@
                     </div>
 
                     <div>
-                        <label for="sync_direction" class="block text-sm font-medium text-gray-900 dark:text-white mb-2">
+                        <label for="sync_direction" class="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
                             Sync Direction
                         </label>
                         <select name="sync_direction" id="sync_direction" 
                                 {% if not has_google_token %}disabled{% endif %}
-                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-dark-background text-gray-900 dark:text-white">
+                                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                             <option value="both" {% if integration.sync_direction == 'both' %}selected{% endif %}>
                                 Two-way sync (Tasks ↔ Google Calendar)
                             </option>
@@ -103,8 +103,8 @@
 
             <!-- Manual Sync Controls -->
             {% if has_google_token %}
-            <div class="mt-8 bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+            <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
                     Manual Sync
                 </h2>
 
@@ -140,14 +140,14 @@
 
         <!-- Status Panel -->
         <div class="lg:col-span-1">
-            <div class="bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
                     Sync Status
                 </h2>
 
                 <div class="space-y-4">
                     <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Status</span>
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Status</span>
                         <span class="text-sm font-medium {% if integration.is_enabled %}text-green-600 dark:text-green-400{% else %}text-gray-500 dark:text-gray-400{% endif %}">
                             {% if integration.is_enabled %}Active{% else %}Inactive{% endif %}
                         </span>
@@ -155,16 +155,16 @@
 
                     {% if integration.last_sync %}
                     <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Last Sync</span>
-                        <span class="text-sm text-gray-900 dark:text-white">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Last Sync</span>
+                        <span class="text-sm text-gray-900 dark:text-gray-100">
                             {{ integration.last_sync|timesince }} ago
                         </span>
                     </div>
                     {% endif %}
 
                     <div class="flex items-center justify-between">
-                        <span class="text-sm text-gray-600 dark:text-gray-400">Calendar ID</span>
-                        <span class="text-sm text-gray-900 dark:text-white truncate ml-2">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Calendar ID</span>
+                        <span class="text-sm text-gray-900 dark:text-gray-100 truncate ml-2">
                             {% if integration.google_calendar_id %}
                                 {{ integration.google_calendar_id|truncatechars:20 }}
                             {% else %}
@@ -177,14 +177,14 @@
 
             <!-- Recent Sync Logs -->
             {% if sync_logs %}
-            <div class="mt-6 bg-white dark:bg-dark-card rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
                     Recent Syncs
                 </h3>
 
                 <div class="space-y-3">
                     {% for log in sync_logs %}
-                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
                         <div>
                             <div class="flex items-center">
                                 {% if log.status == 'success' %}
@@ -200,11 +200,11 @@
                                         <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
                                     </svg>
                                 {% endif %}
-                                <span class="text-sm font-medium text-gray-900 dark:text-white">
+                                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
                                     {{ log.get_sync_type_display }}
                                 </span>
                             </div>
-                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                            <p class="text-xs text-gray-500 dark:text-gray-300 mt-1">
                                 {{ log.timestamp|timesince }} ago • {{ log.events_synced }} events
                             </p>
                         </div>

@@ -33,7 +33,7 @@
                             </svg>
                             <span class="text-yellow-600 font-medium">Google Calendar permissions needed</span>
                         </div>
-                        <p class="text-gray-600 text-sm mt-1">Calendar sync is not active. Please re-authenticate to grant calendar permissions.</p>
+                        <p class="text-gray-600 dark:text-gray-300 text-sm mt-1">Calendar sync is not active. Please re-authenticate to grant calendar permissions.</p>
                     {% endif %}
                 </div>
             {% else %}
@@ -46,8 +46,8 @@
             {% endif %}
         </div>
 
-        <div class="bg-white shadow-md rounded-lg p-6">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Actions</h2>
+        <div class="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Actions</h2>
             
             {% if user.socialaccount_set.all %}
                 <div class="space-y-4">
@@ -69,7 +69,7 @@
                     </div>
                     
                     <div class="border-t pt-4">
-                        <p class="text-gray-600 mb-3">Or re-authenticate to refresh permissions:</p>
+                        <p class="text-gray-600 dark:text-gray-300 mb-3">Or re-authenticate to refresh permissions:</p>
                         <a href="{% url 'socialaccount_login' provider='google' %}" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-md">
                             Re-authenticate with Google
                         </a>
@@ -77,7 +77,7 @@
                 </div>
             {% else %}
                 <div>
-                    <p class="text-gray-600 mb-3">Connect your Google account to enable calendar synchronization:</p>
+                    <p class="text-gray-600 dark:text-gray-300 mb-3">Connect your Google account to enable calendar synchronization:</p>
                     <a href="{% url 'socialaccount_login' provider='google' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md">
                         Connect Google Account
                     </a>
