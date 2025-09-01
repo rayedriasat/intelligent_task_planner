@@ -13,6 +13,7 @@ ALLOWED_HOSTS = [
     'www.Rayed.pythonanywhere.com',
     '127.0.0.1',
     'localhost',
+    'sql303.infinityfree.com',
 ]
 
 # Database configuration for production
