@@ -9,10 +9,11 @@ DEBUG = False
 
 # Add your PythonAnywhere domain here
 ALLOWED_HOSTS = [
-    'yourusername.pythonanywhere.com',  # Replace 'yourusername' with your actual username
-    'www.yourusername.pythonanywhere.com',
+    'Rayed.pythonanywhere.com',  # Replace 'yourusername' with your actual username
+    'www.Rayed.pythonanywhere.com',
     '127.0.0.1',
     'localhost',
+    'sql303.infinityfree.com',
 ]
 
 # Database configuration for production
@@ -34,11 +35,11 @@ DATABASES = {
 
 # Static files configuration for PythonAnywhere
 STATIC_URL = '/static/'
-STATIC_ROOT = '/home/yourusername/intelligent_task_planner/staticfiles'  # Update with your username
+STATIC_ROOT = '/home/Rayed/intelligent_task_planner/staticfiles'  # Update with your username
 
 # Media files configuration
 MEDIA_URL = '/media/'
-MEDIA_ROOT = '/home/yourusername/intelligent_task_planner/media'  # Update with your username
+MEDIA_ROOT = '/home/Rayed/intelligent_task_planner/media'  # Update with your username
 
 # Security settings for production
 SECURE_SSL_REDIRECT = False  # PythonAnywhere handles SSL
@@ -67,7 +68,7 @@ LOGGING = {
         'file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': '/home/yourusername/intelligent_task_planner/logs/django.log',  # Update with your username
+            'filename': '/home/Rayed/intelligent_task_planner/logs/django.log',  # Update with your username
             'formatter': 'verbose',
         },
         'console': {

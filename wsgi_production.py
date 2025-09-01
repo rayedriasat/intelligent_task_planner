@@ -17,7 +17,7 @@ import os
 import sys
 
 # Add your project directory to sys.path
-path = '/home/yourusername/intelligent_task_planner'  # Update with your actual username
+path = '/home/Rayed/intelligent_task_planner'  # Update with your actual username
 if path not in sys.path:
     sys.path.insert(0, path)
 
