@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Subscription Success - Task Planner{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto text-center">
+    {% if success and subscription %}
+    <div class="solid-card p-8">
+        <div class="w-16 h-16 bg-green-100 dark:bg-green-900 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        
+        <h1 class="text-3xl font-bold text-primary mb-4">Welcome to Premium!</h1>
+        <p class="text-lg text-text-secondary dark:text-dark-text-secondary mb-6">
+            Your {{ subscription.plan.name }} subscription is now active. You have access to all premium features!
+        </p>
+        
+        <div class="bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-6">
+            <h3 class="font-semibold text-green-800 dark:text-green-200 mb-2">What's Next?</h3>
+            <ul class="text-left text-green-700 dark:text-green-300 space-y-2">
+                {% if subscription.plan.plan_type == 'pomodoro' %}
+                <li>• Start using the Pomodoro Timer for focused work sessions</li>
+                <li>• Track your productivity and focus patterns</li>
+                <li>• Get intelligent break suggestions</li>
+                {% elif subscription.plan.plan_type == 'ai_chat' %}
+                <li>• Chat with your AI assistant about scheduling</li>
+                <li>• Get personalized productivity recommendations</li>
+                <li>• Optimize your schedule with AI insights</li>
+                {% endif %}
+            </ul>
+        </div>
+        
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            {% if subscription.plan.plan_type == 'pomodoro' %}
+            <a href="{% url 'planner:pomodoro' %}" class="btn-primary">
+                Start Pomodoro Timer
+            </a>
+            {% elif subscription.plan.plan_type == 'ai_chat' %}
+            <a href="{% url 'planner:ai_chat' %}" class="btn-primary">
+                Chat with AI Assistant
+            </a>
+            {% endif %}
+            <a href="{% url 'planner:dashboard' %}" class="btn-secondary">
+                Go to Dashboard
+            </a>
+        </div>
+    </div>
+    {% else %}
+    <div class="solid-card p-8">
+        <div class="w-16 h-16 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+        </div>
+        
+        <h1 class="text-3xl font-bold text-primary mb-4">Payment Issue</h1>
+        <p class="text-lg text-text-secondary dark:text-dark-text-secondary mb-6">
+            {% if error %}
+                {{ error }}
+            {% else %}
+                There was an issue processing your subscription. Please try again.
+            {% endif %}
+        </p>
+        
+        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+            <a href="{% url 'billing:subscribe' %}" class="btn-primary">
+                Try Again
+            </a>
+            <a href="{% url 'planner:dashboard' %}" class="btn-secondary">
+                Go to Dashboard
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

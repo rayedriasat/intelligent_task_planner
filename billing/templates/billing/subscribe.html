@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Premium Subscriptions - Task Planner{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="text-center mb-12">
+        <h1 class="text-4xl font-bold text-primary mb-4">Choose Your Premium Plan</h1>
+        <p class="text-lg text-text-secondary dark:text-dark-text-secondary">
+            Unlock powerful features to supercharge your productivity
+        </p>
+        
+        {% if request.GET.feature %}
+        <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800 rounded-lg max-w-md mx-auto">
+            <p class="text-blue-700 dark:text-blue-300">
+                {% if request.GET.feature == 'pomodoro' %}
+                <strong>Pomodoro Timer Required:</strong> Subscribe to access focus sessions and productivity tracking.
+                {% elif request.GET.feature == 'ai_chat' %}
+                <strong>AI Assistant Required:</strong> Subscribe to get personalized scheduling advice and AI insights.
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Subscription Plans -->
+    <div class="grid md:grid-cols-2 gap-8 mb-12">
+        {% for plan in plans %}
+        <div class="solid-card p-8 relative {% if plan.plan_type in user_subscriptions %}ring-2 ring-green-500{% endif %}">
+            {% if plan.plan_type in user_subscriptions %}
+            <div class="absolute top-4 right-4">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    Active
+                </span>
+            </div>
+            {% endif %}
+            
+            <div class="text-center mb-6">
+                <h3 class="text-2xl font-bold mb-2">{{ plan.name }}</h3>
+                <div class="text-3xl font-bold text-primary mb-2">
+                    ${{ plan.price }}<span class="text-lg text-text-secondary dark:text-dark-text-secondary font-normal">/month</span>
+                </div>
+                <p class="text-text-secondary dark:text-dark-text-secondary">{{ plan.description }}</p>
+            </div>
+            
+            <div class="mb-8">
+                <h4 class="font-semibold mb-4">Features included:</h4>
+                <ul class="space-y-3">
+                    {% for feature in plan.features %}
+                    <li class="flex items-center">
+                        <svg class="w-5 h-5 text-green-500 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        {{ feature }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            {% if plan.plan_type in user_subscriptions %}
+            <div class="text-center">
+                <p class="text-green-600 dark:text-green-400 font-medium mb-4">
+                    You have access to {{ plan.name }}
+                </p>
+                <a href="{% url 'billing:manage' %}" class="btn-secondary w-full">
+                    Manage Subscription
+                </a>
+            </div>
+            {% else %}
+            <button onclick="subscribeToPlan({{ plan.id }})" 
+                    class="btn-primary w-full subscribe-button" 
+                    data-plan-id="{{ plan.id }}"
+                    data-plan-name="{{ plan.name }}">
+                Subscribe to {{ plan.name }}
+            </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Features Comparison -->
+    <div class="solid-card p-8">
+        <h2 class="text-2xl font-bold mb-6 text-center">Feature Comparison</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200 dark:border-gray-700">
+                        <th class="text-left py-4 px-4">Feature</th>
+                        <th class="text-center py-4 px-4">Free</th>
+                        <th class="text-center py-4 px-4">Pomodoro Plan</th>
+                        <th class="text-center py-4 px-4">AI Chat Plan</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                    <tr>
+                        <td class="py-4 px-4">Basic Task Management</td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-4 px-4">Calendar Integration</td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-4 px-4">Pomodoro Timer</td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="py-4 px-4">AI Schedule Assistant</td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-gray-400 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M13.477 14.89A6 6 0 015.11 6.524l8.367 8.368zm1.414-1.414L6.524 5.11a6 6 0 018.367 8.367zM18 10a8 8 0 11-16 0 8 8 0 0116 0z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                        <td class="text-center py-4 px-4">
+                            <svg class="w-5 h-5 text-green-500 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="solid-card p-8 mt-8">
+        <h2 class="text-2xl font-bold mb-6 text-center">Frequently Asked Questions</h2>
+        <div class="space-y-6">
+            <div>
+                <h3 class="font-semibold mb-2">Can I cancel my subscription anytime?</h3>
+                <p class="text-text-secondary dark:text-dark-text-secondary">
+                    Yes, you can cancel your subscription at any time. You'll continue to have access to premium features until the end of your current billing period.
+                </p>
+            </div>
+            <div>
+                <h3 class="font-semibold mb-2">What payment methods do you accept?</h3>
+                <p class="text-text-secondary dark:text-dark-text-secondary">
+                    We accept all major credit cards and debit cards through our secure Stripe payment processor.
+                </p>
+            </div>
+            <div>
+                <h3 class="font-semibold mb-2">Can I upgrade or downgrade my plan?</h3>
+                <p class="text-text-secondary dark:text-dark-text-secondary">
+                    You can subscribe to multiple plans simultaneously. Each plan provides access to its specific features.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function subscribeToPlan(planId) {
+    const button = document.querySelector(`[data-plan-id="${planId}"]`);
+    button.disabled = true;
+    button.textContent = 'Processing...';
+    
+    fetch('{% url "billing:create_checkout_session" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `plan_id=${planId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            window.location.href = data.checkout_url;
+        } else {
+            alert(data.error || 'Failed to create checkout session');
+            button.disabled = false;
+            button.textContent = `Subscribe to ${button.getAttribute('data-plan-name')}`;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+        button.disabled = false;
+        button.textContent = `Subscribe to ${button.getAttribute('data-plan-name')}`;
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Subscriptions - Task Planner{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-primary mb-4">Manage Your Subscriptions</h1>
+        <p class="text-text-secondary dark:text-dark-text-secondary">
+            View and manage your premium subscriptions
+        </p>
+    </div>
+
+    {% if subscriptions %}
+    <div class="space-y-6">
+        {% for subscription in subscriptions %}
+        <div class="solid-card p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center">
+                <div class="mb-4 md:mb-0">
+                    <h3 class="text-xl font-semibold mb-2">{{ subscription.plan.name }}</h3>
+                    <p class="text-text-secondary dark:text-dark-text-secondary mb-2">
+                        ${{ subscription.plan.price }}/month
+                    </p>
+                    <div class="flex items-center space-x-4">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
+                            {% if subscription.status == 'active' %}bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200
+                            {% elif subscription.status == 'trialing' %}bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200
+                            {% elif subscription.status == 'canceled' %}bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200
+                            {% elif subscription.status == 'past_due' %}bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200
+                            {% else %}bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200{% endif %}">
+                            {{ subscription.get_status_display }}
+                        </span>
+                        {% if subscription.is_active %}
+                        <span class="text-sm text-text-secondary dark:text-dark-text-secondary">
+                            Renews {{ subscription.current_period_end|date:"M d, Y" }}
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="flex space-x-3">
+                    {% if subscription.plan.plan_type == 'pomodoro' and subscription.is_active %}
+                    <a href="{% url 'planner:pomodoro' %}" class="btn-secondary">
+                        Use Pomodoro
+                    </a>
+                    {% elif subscription.plan.plan_type == 'ai_chat' and subscription.is_active %}
+                    <a href="{% url 'planner:ai_chat' %}" class="btn-secondary">
+                        Use AI Chat
+                    </a>
+                    {% endif %}
+                    
+                    {% if subscription.status in 'active,trialing' %}
+                    <button onclick="cancelSubscription({{ subscription.id }})" 
+                            class="btn-danger"
+                            data-subscription-id="{{ subscription.id }}">
+                        Cancel
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if subscription.plan.features %}
+            <div class="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                <h4 class="font-semibold mb-3">Features included:</h4>
+                <ul class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {% for feature in subscription.plan.features %}
+                    <li class="flex items-center text-sm">
+                        <svg class="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        {{ feature }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-12">
+        <div class="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+            </svg>
+        </div>
+        <h3 class="text-xl font-semibold mb-4">No Active Subscriptions</h3>
+        <p class="text-text-secondary dark:text-dark-text-secondary mb-6">
+            You don't have any active subscriptions yet. Subscribe to unlock premium features.
+        </p>
+        <a href="{% url 'billing:subscribe' %}" class="btn-primary">
+            View Plans
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- Billing Information -->
+    <div class="solid-card p-6 mt-8">
+        <h2 class="text-lg font-semibold mb-4">Billing Information</h2>
+        <div class="space-y-4">
+            <div>
+                <h4 class="font-medium mb-2">Payment Method</h4>
+                <p class="text-text-secondary dark:text-dark-text-secondary">
+                    Your payment method is securely stored with Stripe. You can update it during your next payment.
+                </p>
+            </div>
+            <div>
+                <h4 class="font-medium mb-2">Need Help?</h4>
+                <p class="text-text-secondary dark:text-dark-text-secondary">
+                    If you have questions about your subscription or billing, please contact our support team.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cancelSubscription(subscriptionId) {
+    if (!confirm('Are you sure you want to cancel this subscription? You will lose access to premium features at the end of your current billing period.')) {
+        return;
+    }
+    
+    const button = document.querySelector(`[data-subscription-id="${subscriptionId}"]`);
+    button.disabled = true;
+    button.textContent = 'Canceling...';
+    
+    fetch('{% url "billing:cancel_subscription" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `subscription_id=${subscriptionId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.error || 'Failed to cancel subscription');
+            button.disabled = false;
+            button.textContent = 'Cancel';
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+        button.disabled = false;
+        button.textContent = 'Cancel';
+    });
+}
+</script>
+{% endblock %}

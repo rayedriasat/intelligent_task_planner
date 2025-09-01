@@ -555,6 +555,22 @@ class PomodoroTimerView(LoginRequiredMixin, TemplateView):
     """Pomodoro timer interface."""
     template_name = 'pomodoro.html'
     
+    def dispatch(self, request, *args, **kwargs):
+        """Check subscription before allowing access."""
+        from billing.services import user_has_pomodoro_access
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        from django.urls import reverse
+        
+        if not user_has_pomodoro_access(request.user):
+            messages.warning(
+                request, 
+                'You need a Pomodoro subscription to access this feature.'
+            )
+            return redirect(reverse('billing:subscribe') + '?feature=pomodoro')
+        
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
@@ -596,6 +612,14 @@ class PomodoroTimerView(LoginRequiredMixin, TemplateView):
 @require_POST
 def start_pomodoro_session(request):
     """Start a new Pomodoro session."""
+    from billing.services import user_has_pomodoro_access
+    
+    if not user_has_pomodoro_access(request.user):
+        return JsonResponse({
+            'success': False,
+            'error': 'You need a Pomodoro subscription to access this feature.',
+            'redirect_url': '/billing/subscribe/?feature=pomodoro'
+        }, status=403)
     try:
         task_id = request.POST.get('task_id')
         session_type = request.POST.get('session_type', 'focus')
@@ -647,6 +671,14 @@ def start_pomodoro_session(request):
 @require_POST
 def complete_pomodoro_session(request):
     """Complete the current Pomodoro session."""
+    from billing.services import user_has_pomodoro_access
+    
+    if not user_has_pomodoro_access(request.user):
+        return JsonResponse({
+            'success': False,
+            'error': 'You need a Pomodoro subscription to access this feature.',
+            'redirect_url': '/billing/subscribe/?feature=pomodoro'
+        }, status=403)
     try:
         session_id = request.POST.get('session_id')
         actual_minutes = request.POST.get('actual_minutes')
@@ -688,6 +720,14 @@ def complete_pomodoro_session(request):
 @require_POST
 def pause_pomodoro_session(request):
     """Pause the current Pomodoro session."""
+    from billing.services import user_has_pomodoro_access
+    
+    if not user_has_pomodoro_access(request.user):
+        return JsonResponse({
+            'success': False,
+            'error': 'You need a Pomodoro subscription to access this feature.',
+            'redirect_url': '/billing/subscribe/?feature=pomodoro'
+        }, status=403)
     try:
         session_id = request.POST.get('session_id')
         
@@ -713,6 +753,14 @@ def pause_pomodoro_session(request):
 @require_POST
 def cancel_pomodoro_session(request):
     """Cancel the current Pomodoro session."""
+    from billing.services import user_has_pomodoro_access
+    
+    if not user_has_pomodoro_access(request.user):
+        return JsonResponse({
+            'success': False,
+            'error': 'You need a Pomodoro subscription to access this feature.',
+            'redirect_url': '/billing/subscribe/?feature=pomodoro'
+        }, status=403)
     try:
         session_id = request.POST.get('session_id')
         
@@ -1469,6 +1517,22 @@ class AIChatView(LoginRequiredMixin, TemplateView):
     """AI Chat interface for scheduling assistance."""
     template_name = 'planner/ai_chat.html'
     
+    def dispatch(self, request, *args, **kwargs):
+        """Check subscription before allowing access."""
+        from billing.services import user_has_ai_chat_access
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        from django.urls import reverse
+        
+        if not user_has_ai_chat_access(request.user):
+            messages.warning(
+                request, 
+                'You need an AI Chat subscription to access this feature.'
+            )
+            return redirect(reverse('billing:subscribe') + '?feature=ai_chat')
+        
+        return super().dispatch(request, *args, **kwargs)
+    
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
@@ -1525,6 +1589,14 @@ class AIChatView(LoginRequiredMixin, TemplateView):
 @require_POST
 def send_ai_chat_message(request):
     """Send a chat message to AI and get response with full schedule context."""
+    from billing.services import user_has_ai_chat_access
+    
+    if not user_has_ai_chat_access(request.user):
+        return JsonResponse({
+            'success': False,
+            'error': 'You need an AI Chat subscription to access this feature.',
+            'redirect_url': '/billing/subscribe/?feature=ai_chat'
+        }, status=403)
     try:
         user_message = request.POST.get('message', '').strip()
         if not user_message:
