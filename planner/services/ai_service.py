@@ -64,6 +64,16 @@ class AIResponse:
     error_message: Optional[str] = None
 
 
+@dataclass
+class AIChatResponse:
+    """Structured AI chat response."""
+    success: bool
+    response: str
+    suggestions: Optional[List[str]] = None
+    context_summary: Optional[str] = None
+    error_message: Optional[str] = None
+
+
 class OpenRouterAPIError(Exception):
     """Custom exception for OpenRouter API errors."""
     pass
@@ -374,6 +384,241 @@ Provide ONLY valid JSON response, no additional text."""
                 error_message=f"Unexpected error: {str(e)}"
             )
     
+    def create_chat_prompt(self, user_message: str, user_context: Dict[str, Any]) -> str:
+        """Create the AI prompt for chat responses with full user context."""
+        
+        current_time = timezone.now().isoformat()
+        
+        # Format the context nicely for the AI
+        context_summary = f"""
+USER PROFILE:
+- Username: {user_context.get('user_info', {}).get('username', 'Unknown')}
+- Current Time: {current_time}
+
+SCHEDULE OVERVIEW:
+- Total Tasks: {user_context.get('schedule_overview', {}).get('total_tasks', 0)}
+- Scheduled Tasks: {user_context.get('schedule_overview', {}).get('scheduled_tasks', 0)}
+- Unscheduled Tasks: {user_context.get('schedule_overview', {}).get('unscheduled_tasks', 0)}
+- Tasks Due Today: {user_context.get('schedule_overview', {}).get('tasks_due_today', 0)}
+- Tasks Due This Week: {user_context.get('schedule_overview', {}).get('tasks_due_this_week', 0)}
+- Overdue Tasks: {user_context.get('schedule_overview', {}).get('overdue_tasks', 0)}
+
+CURRENT TASKS:
+{json.dumps(user_context.get('current_tasks', [])[:10], indent=2)}
+
+AVAILABILITY:
+{json.dumps(user_context.get('availability', [])[:5], indent=2)}
+
+RECENT ACTIVITY:
+{json.dumps(user_context.get('recent_activity', {}), indent=2)}
+"""
+
+        prompt = f"""You are an expert AI scheduling and productivity assistant for a task management application. 
+
+You have full context about the user's schedule, tasks, deadlines, and productivity patterns. Analyze this information to provide helpful, personalized advice.
+
+{context_summary}
+
+USER MESSAGE: "{user_message}"
+
+INSTRUCTIONS:
+1. Provide a helpful, personalized response based on the user's actual data
+2. Be conversational and supportive, not robotic
+3. Reference specific tasks, deadlines, or patterns when relevant
+4. Offer actionable advice and suggestions
+5. If asked about scheduling, suggest specific time slots from their availability
+6. Keep responses concise but informative
+7. Generate 2-3 helpful follow-up suggestions when appropriate
+
+RESPONSE FORMAT (JSON):
+{{
+    "success": true,
+    "response": "Your main response to the user's message",
+    "suggestions": ["Optional follow-up suggestion 1", "Optional follow-up suggestion 2"],
+    "context_summary": "Brief summary of what context was most relevant to this response"
+}}
+
+Provide ONLY valid JSON response, no additional text."""
+
+        return prompt
+    
+    async def get_chat_response(self, user_message: str, user_context: Dict[str, Any]) -> AIChatResponse:
+        """
+        Get AI chat response with full user context.
+        
+        Args:
+            user_message: The user's chat message
+            user_context: Complete user schedule and task context
+            
+        Returns:
+            AIChatResponse with the AI's response
+        """
+        
+        try:
+            # Validate inputs
+            if not user_message or not user_message.strip():
+                return AIChatResponse(
+                    success=False,
+                    response="",
+                    error_message="No message provided"
+                )
+            
+            # Check if API key is configured
+            if not self.api_key:
+                logger.warning("OpenRouter API key not configured, providing fallback chat response")
+                return self._create_fallback_chat_response(user_message, user_context)
+            
+            # Create chat prompt
+            prompt = self.create_chat_prompt(user_message, user_context)
+            
+            logger.info(f"Requesting AI chat response for message: {user_message[:50]}...")
+            
+            # Call AI API
+            api_response = await self.call_openrouter_api(prompt)
+            
+            # Parse and return response
+            chat_response = self.parse_chat_response(api_response)
+            
+            logger.info(f"AI chat response received successfully")
+            
+            return chat_response
+            
+        except OpenRouterAPIError as e:
+            logger.error(f"OpenRouter API error in chat: {e}")
+            # Provide fallback response on API error
+            logger.info("Providing fallback chat response due to API error")
+            return self._create_fallback_chat_response(user_message, user_context)
+        except Exception as e:
+            logger.error(f"Unexpected error in get_chat_response: {e}")
+            return AIChatResponse(
+                success=False,
+                response="",
+                error_message=f"Unexpected error: {str(e)}"
+            )
+    
+    def parse_chat_response(self, api_response: Dict[str, Any]) -> AIChatResponse:
+        """Parse OpenRouter API response into chat format."""
+        
+        try:
+            # Extract content from OpenRouter response format
+            if "choices" not in api_response or not api_response["choices"]:
+                raise ValueError("Invalid API response format: no choices")
+            
+            content = api_response["choices"][0]["message"]["content"]
+            
+            # Check if content is empty or None
+            if not content or content.strip() == "":
+                raise ValueError("Empty content in API response")
+            
+            logger.debug(f"Parsing AI chat response content: {content[:200]}...")
+            
+            # Clean the content - remove markdown code blocks if present
+            content = content.strip()
+            if content.startswith('```json'):
+                content = content[7:]  # Remove ```json
+            elif content.startswith('```'):
+                content = content[3:]   # Remove ```
+            
+            if content.endswith('```'):
+                content = content[:-3]  # Remove trailing ```
+            
+            content = content.strip()
+            
+            # Parse JSON content
+            chat_data = json.loads(content)
+            
+            if not chat_data.get("success", False):
+                return AIChatResponse(
+                    success=False,
+                    response="I apologize, but I'm having trouble processing your request right now.",
+                    error_message=chat_data.get("error", "AI indicated failure")
+                )
+            
+            return AIChatResponse(
+                success=True,
+                response=chat_data.get("response", "I'm here to help with your scheduling!"),
+                suggestions=chat_data.get("suggestions", []),
+                context_summary=chat_data.get("context_summary", "")
+            )
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse AI chat response as JSON: {e}")
+            try:
+                logger.error(f"Content that failed to parse: {content[:500]}")
+            except:
+                logger.error("Unable to log content that failed to parse")
+            return AIChatResponse(
+                success=False,
+                response="I apologize, but I'm having trouble understanding the response format.",
+                error_message=f"JSON parse error: {str(e)}"
+            )
+        except Exception as e:
+            logger.error(f"Error parsing AI chat response: {e}")
+            return AIChatResponse(
+                success=False,
+                response="I apologize, but I encountered an error processing the response.",
+                error_message=str(e)
+            )
+    
+    def _create_fallback_chat_response(self, user_message: str, user_context: Dict[str, Any]) -> AIChatResponse:
+        """
+        Create a fallback chat response when AI API is unavailable.
+        Uses basic rules to provide helpful responses.
+        """
+        logger.info("Creating fallback AI chat response")
+        
+        message_lower = user_message.lower()
+        schedule_overview = user_context.get('schedule_overview', {})
+        
+        # Analyze the message and provide contextual responses
+        if any(word in message_lower for word in ['today', 'what should i do', 'work on']):
+            tasks_due_today = schedule_overview.get('tasks_due_today', 0)
+            unscheduled_tasks = schedule_overview.get('unscheduled_tasks', 0)
+            
+            if tasks_due_today > 0:
+                response = f"You have {tasks_due_today} task{'s' if tasks_due_today != 1 else ''} due today. I'd recommend starting with your highest priority items."
+            elif unscheduled_tasks > 0:
+                response = f"You have {unscheduled_tasks} unscheduled task{'s' if unscheduled_tasks != 1 else ''}. Consider scheduling them into your available time blocks."
+            else:
+                response = "Great! It looks like you're caught up with your immediate tasks. This might be a good time to plan ahead or work on longer-term projects."
+                
+        elif any(word in message_lower for word in ['schedule', 'week', 'upcoming']):
+            total_tasks = schedule_overview.get('total_tasks', 0)
+            scheduled = schedule_overview.get('scheduled_tasks', 0)
+            due_this_week = schedule_overview.get('tasks_due_this_week', 0)
+            
+            response = f"You have {total_tasks} total tasks, with {scheduled} already scheduled. {due_this_week} tasks are due this week."
+            
+        elif any(word in message_lower for word in ['urgent', 'deadline', 'overdue']):
+            overdue = schedule_overview.get('overdue_tasks', 0)
+            due_today = schedule_overview.get('tasks_due_today', 0)
+            
+            if overdue > 0:
+                response = f"You have {overdue} overdue task{'s' if overdue != 1 else ''}. I recommend prioritizing these immediately."
+            elif due_today > 0:
+                response = f"You have {due_today} task{'s' if due_today != 1 else ''} due today. These should be your top priority."
+            else:
+                response = "Good news! You don't have any overdue tasks or urgent deadlines today."
+                
+        elif any(word in message_lower for word in ['productivity', 'efficient', 'optimize']):
+            response = "Here are some productivity tips: Focus on high-priority tasks during your peak energy hours, break large tasks into smaller chunks, and use time-blocking to stay organized."
+            
+        else:
+            # Generic helpful response
+            total_tasks = schedule_overview.get('total_tasks', 0)
+            response = f"I'm here to help you manage your {total_tasks} tasks and optimize your schedule! Ask me about your deadlines, what to work on next, or how to improve your productivity."
+        
+        return AIChatResponse(
+            success=True,
+            response=response,
+            suggestions=[
+                "What should I work on today?",
+                "How is my schedule this week?",
+                "What tasks are urgent?"
+            ],
+            context_summary="Used basic scheduling logic (AI API unavailable)"
+        )
+
     def _create_fallback_response(self, tasks: List, time_blocks: List) -> AIResponse:
         """
         Create a fallback response when AI API is unavailable.
@@ -443,7 +688,7 @@ Provide ONLY valid JSON response, no additional text."""
         )
 
 
-# Convenience function for synchronous usage
+# Convenience functions for synchronous usage
 def get_ai_scheduling_suggestions_sync(tasks: List, time_blocks: List) -> AIResponse:
     """
     Synchronous wrapper for AI scheduling suggestions.
@@ -475,5 +720,38 @@ def get_ai_scheduling_suggestions_sync(tasks: List, time_blocks: List) -> AIResp
             suggestions=[],
             overall_score=0.0,
             reasoning="Service error",
+            error_message=str(e)
+        )
+
+
+def get_ai_chat_response_sync(user_message: str, user_context: Dict[str, Any]) -> AIChatResponse:
+    """
+    Synchronous wrapper for AI chat responses.
+    
+    Args:
+        user_message: The user's chat message
+        user_context: Complete user schedule and task context
+        
+    Returns:
+        AIChatResponse with the AI's response
+    """
+    import asyncio
+    
+    service = OpenRouterService()
+    
+    try:
+        # Run async function in event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(
+            service.get_chat_response(user_message, user_context)
+        )
+        loop.close()
+        return result
+    except Exception as e:
+        logger.error(f"Error in chat sync wrapper: {e}")
+        return AIChatResponse(
+            success=False,
+            response="I apologize, but I'm experiencing technical difficulties. Please try again later.",
             error_message=str(e)
         )

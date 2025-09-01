@@ -11,11 +11,18 @@
 {% block content %}
 <div class="max-w-7xl mx-auto">
     <!-- Header -->
-    <div class="flex justify-between items-center mb-8">
-        <h1 class="text-2xl font-bold text-primary">My Tasks</h1>
-        <button onclick="document.getElementById('taskModal').classList.remove('hidden')" class="btn-primary">
-            Add Task
-        </button>
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-primary">My Tasks</h1>
+        </div>
+        <div class="flex space-x-3">
+            <a href="{% url 'planner:task_list' %}" class="btn-secondary">
+                List View
+            </a>
+            <button onclick="document.getElementById('taskModal').classList.remove('hidden')" class="btn-primary">
+                Add Task
+            </button>
+        </div>
     </div>
 
     <!-- Kanban Board -->

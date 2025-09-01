@@ -82,14 +82,57 @@ class OnboardingView(LoginRequiredMixin, TemplateView):
 
 
 class DashboardView(LoginRequiredMixin, TemplateView):
-    """Main dashboard - redirects to Kanban by default."""
+    """Main dashboard with overview statistics."""
     template_name = 'planner/dashboard.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get user's tasks and calculate stats
+        user_tasks = self.request.user.tasks.all()
+        today = timezone.now().date()
+        
+        # Calculate task status counts
+        total_tasks = user_tasks.count()
+        completed_tasks_count = user_tasks.filter(status='completed').count()
+        in_progress_tasks_count = user_tasks.filter(status='in_progress').count()
+        todo_tasks_count = user_tasks.filter(status='todo').count()
+        
+        # Calculate urgent tasks (due within 2 days)
+        urgent_deadline = timezone.now() + timedelta(days=2)
+        urgent_tasks_count = user_tasks.filter(
+            deadline__lte=urgent_deadline,
+            status__in=['todo', 'in_progress']
+        ).count()
+        
+        # Recent tasks (last 10 updated)
+        recent_tasks = user_tasks.order_by('-updated_at')[:10]
+        
+        # Schedule overview stats
+        scheduled_tasks_count = user_tasks.filter(start_time__isnull=False).count()
+        unscheduled_tasks_count = user_tasks.filter(start_time__isnull=True, status__in=['todo', 'in_progress']).count()
+        
+        context.update({
+            'total_tasks': total_tasks,
+            'completed_tasks_count': completed_tasks_count,
+            'in_progress_tasks_count': in_progress_tasks_count,
+            'todo_tasks_count': todo_tasks_count,
+            'recent_tasks': recent_tasks,
+            'urgent_tasks_count': urgent_tasks_count,
+            'scheduled_tasks_count': scheduled_tasks_count,
+            'unscheduled_tasks_count': unscheduled_tasks_count,
+        })
+        
+        return context
 
     def get(self, request, *args, **kwargs):
         # Check if user is new (no tasks)
         if not request.user.tasks.exists():
             return redirect('planner:onboarding')
-        return redirect('planner:kanban')
+        
+        # Render dashboard instead of redirecting to kanban
+        return self.render_to_response(self.get_context_data())
+
 
 
 class KanbanView(LoginRequiredMixin, TemplateView):
@@ -1420,6 +1463,237 @@ def apply_ai_suggestions(request):
             'success': False,
             'error': f'Failed to apply suggestions: {str(e)}'
         })
+
+
+class AIChatView(LoginRequiredMixin, TemplateView):
+    """AI Chat interface for scheduling assistance."""
+    template_name = 'planner/ai_chat.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get user's task and schedule context for AI
+        user_tasks = self.request.user.tasks.all().order_by('deadline')
+        time_blocks = self.request.user.time_blocks.all().order_by('start_time')
+        
+        # Recent optimization history
+        recent_optimizations = []
+        if hasattr(self.request.user, 'optimization_history'):
+            from .models import OptimizationHistory
+            recent_optimizations = OptimizationHistory.objects.filter(
+                user=self.request.user
+            ).order_by('-timestamp')[:5]
+        
+        # Calculate some stats for context
+        total_tasks = user_tasks.count()
+        completed_tasks = user_tasks.filter(status='completed').count()
+        scheduled_tasks = user_tasks.filter(start_time__isnull=False).count()
+        unscheduled_tasks = total_tasks - scheduled_tasks
+        
+        # Recent activity summary
+        today = timezone.now().date()
+        tasks_due_today = user_tasks.filter(
+            deadline__date=today,
+            status__in=['todo', 'in_progress']
+        ).count()
+        
+        tasks_due_soon = user_tasks.filter(
+            deadline__date__lte=today + timedelta(days=3),
+            deadline__date__gt=today,
+            status__in=['todo', 'in_progress']
+        ).count()
+        
+        context.update({
+            'user_tasks': user_tasks[:10],  # Recent tasks for display
+            'time_blocks': time_blocks,
+            'recent_optimizations': recent_optimizations,
+            'stats': {
+                'total_tasks': total_tasks,
+                'completed_tasks': completed_tasks,
+                'scheduled_tasks': scheduled_tasks,
+                'unscheduled_tasks': unscheduled_tasks,
+                'tasks_due_today': tasks_due_today,
+                'tasks_due_soon': tasks_due_soon,
+                'completion_rate': (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0,
+            }
+        })
+        
+        return context
+
+
+@login_required
+@require_POST
+def send_ai_chat_message(request):
+    """Send a chat message to AI and get response with full schedule context."""
+    try:
+        user_message = request.POST.get('message', '').strip()
+        if not user_message:
+            return JsonResponse({
+                'success': False,
+                'error': 'Message cannot be empty'
+            })
+        
+        # Get comprehensive user context
+        user_context = _get_user_schedule_context(request.user)
+        
+        # Import AI service
+        from .services.ai_service import get_ai_chat_response_sync
+        
+        # Get AI response with full context
+        ai_response = get_ai_chat_response_sync(user_message, user_context)
+        
+        if ai_response.success:
+            return JsonResponse({
+                'success': True,
+                'response': ai_response.response,
+                'suggestions': ai_response.suggestions if hasattr(ai_response, 'suggestions') else [],
+                'context_used': ai_response.context_summary if hasattr(ai_response, 'context_summary') else None
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': ai_response.error_message,
+                'fallback_response': 'I apologize, but I\'m having trouble connecting to the AI service right now. Please try again later.'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in AI chat: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Chat service error: {str(e)}',
+            'fallback_response': 'I apologize, but I\'m experiencing technical difficulties. Please try again later.'
+        })
+
+
+def _get_user_schedule_context(user):
+    """Get comprehensive user context for AI chat."""
+    from datetime import datetime, timedelta
+    
+    # Get tasks
+    all_tasks = list(user.tasks.all().order_by('deadline'))
+    scheduled_tasks = [t for t in all_tasks if t.is_scheduled]
+    unscheduled_tasks = [t for t in all_tasks if not t.is_scheduled]
+    
+    # Get time blocks
+    time_blocks = list(user.time_blocks.all().order_by('start_time'))
+    
+    # Get recent optimization history
+    recent_optimizations = []
+    try:
+        from .models import OptimizationHistory
+        recent_optimizations = list(OptimizationHistory.objects.filter(
+            user=user
+        ).order_by('-timestamp')[:3])
+    except:
+        pass
+    
+    # Calculate schedule metrics
+    today = timezone.now().date()
+    now = timezone.now()
+    
+    # Tasks due today and soon
+    tasks_due_today = [t for t in all_tasks if t.deadline.date() == today and t.status != 'completed']
+    tasks_due_this_week = [t for t in all_tasks if t.deadline.date() <= today + timedelta(days=7) and t.status != 'completed']
+    overdue_tasks = [t for t in all_tasks if t.deadline < now and t.status != 'completed']
+    
+    # Recent Pomodoro sessions
+    recent_pomodoros = []
+    try:
+        from .models import PomodoroSession
+        recent_pomodoros = list(PomodoroSession.objects.filter(
+            task__user=user,
+            start_time__gte=now - timedelta(days=7)
+        ).order_by('-start_time')[:5])
+    except:
+        pass
+    
+    # Compile context
+    context = {
+        'user_info': {
+            'username': user.username,
+            'email': user.email,
+            'timezone': str(timezone.get_current_timezone()),
+        },
+        'schedule_overview': {
+            'total_tasks': len(all_tasks),
+            'scheduled_tasks': len(scheduled_tasks),
+            'unscheduled_tasks': len(unscheduled_tasks),
+            'completed_tasks': len([t for t in all_tasks if t.status == 'completed']),
+            'total_time_blocks': len(time_blocks),
+            'tasks_due_today': len(tasks_due_today),
+            'tasks_due_this_week': len(tasks_due_this_week),
+            'overdue_tasks': len(overdue_tasks),
+        },
+        'current_tasks': [
+            {
+                'id': t.id,
+                'title': t.title,
+                'description': t.description or '',
+                'status': t.status,
+                'priority': t.priority,
+                'priority_display': t.get_priority_display(),
+                'deadline': t.deadline.isoformat(),
+                'estimated_hours': float(t.estimated_hours),
+                'actual_hours': float(t.actual_hours) if t.actual_hours else None,
+                'is_scheduled': t.is_scheduled,
+                'start_time': t.start_time.isoformat() if t.start_time else None,
+                'end_time': t.end_time.isoformat() if t.end_time else None,
+                'is_locked': t.is_locked,
+            } for t in all_tasks[:20]  # Limit to recent/important tasks
+        ],
+        'availability': [
+            {
+                'id': tb.id,
+                'start_time': tb.start_time.isoformat(),
+                'end_time': tb.end_time.isoformat(),
+                'is_recurring': tb.is_recurring,
+                'day_of_week': tb.day_of_week,
+                'day_name': tb.get_day_of_week_display() if tb.day_of_week is not None else None,
+                'duration_hours': tb.duration_hours,
+            } for tb in time_blocks
+        ],
+        'recent_activity': {
+            'recent_optimizations': [
+                {
+                    'timestamp': opt.timestamp.isoformat(),
+                    'scheduled_count': opt.scheduled_count,
+                    'unscheduled_count': opt.unscheduled_count,
+                    'utilization_rate': opt.utilization_rate,
+                    'was_overloaded': opt.was_overloaded,
+                } for opt in recent_optimizations
+            ],
+            'recent_pomodoros': [
+                {
+                    'task_title': session.task.title,
+                    'session_type': session.session_type,
+                    'duration': session.actual_duration or session.planned_duration,
+                    'start_time': session.start_time.isoformat(),
+                    'status': session.status,
+                } for session in recent_pomodoros
+            ]
+        },
+        'urgency_analysis': {
+            'overdue_tasks': [
+                {
+                    'title': t.title,
+                    'deadline': t.deadline.isoformat(),
+                    'priority': t.get_priority_display(),
+                    'estimated_hours': float(t.estimated_hours),
+                } for t in overdue_tasks[:5]
+            ],
+            'due_today': [
+                {
+                    'title': t.title,
+                    'deadline': t.deadline.isoformat(),
+                    'priority': t.get_priority_display(),
+                    'estimated_hours': float(t.estimated_hours),
+                } for t in tasks_due_today
+            ]
+        }
+    }
+    
+    return context
+    
 
 
 # Google Calendar Integration Views
