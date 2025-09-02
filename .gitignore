@@ -31,15 +31,8 @@ db.sqlite3-journal
 # Environment variables
 .env
 
-# Static files (will be generated)
-/static/css/style.css
-
-# Media files
-/media/
-
 # Node modules
 node_modules/
-package-lock.json
 
 # IDE
 .vscode/
@@ -52,5 +45,4 @@ package-lock.json
 Thumbs.db
 
 # Logs
-/logs/
 *.log
