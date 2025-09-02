@@ -10,7 +10,7 @@ import django
 from django.core.management import execute_from_command_line
 
 if __name__ == '__main__':
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelligent_task_planner.production_settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelligent_task_planner.settings')
     django.setup()
     
     print("Collecting static files for production...")

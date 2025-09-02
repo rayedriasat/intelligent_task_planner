@@ -22,7 +22,7 @@ if path not in sys.path:
     sys.path.insert(0, path)
 
 # Set the Django settings module to use production settings
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelligent_task_planner.production_settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'intelligent_task_planner.settings')
 
 from django.core.wsgi import get_wsgi_application
 application = get_wsgi_application()
