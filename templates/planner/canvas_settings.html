@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Canvas LMS Settings - TaskFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Canvas LMS Integration
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            Connect your university Canvas LMS account to automatically sync assignments, todos, and announcements.
+        </p>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-6 p-4 rounded-lg {% if message.tags == 'error' %}bg-red-50 border border-red-200 text-red-800{% else %}bg-green-50 border border-green-200 text-green-800{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Settings Panel -->
+        <div class="lg:col-span-2">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+                    Canvas Configuration
+                </h2>
+
+                {% if not is_configured %}
+                    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+                        <div class="flex items-start">
+                            <svg class="w-5 h-5 text-yellow-600 dark:text-yellow-400 mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                            </svg>
+                            <div>
+                                <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-400">
+                                    Canvas Not Configured
+                                </h3>
+                                <p class="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
+                                    You need to provide your Canvas instance URL and access token to enable sync.
+                                    <a href="https://community.canvaslms.com/t5/Student-Guide/How-do-I-manage-API-access-tokens-as-a-student/ta-p/273" 
+                                       target="_blank" rel="noopener" class="font-medium underline hover:no-underline">
+                                        Learn how to get an access token
+                                    </a>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <form method="post" class="space-y-6">
+                    {% csrf_token %}
+                    
+                    <div>
+                        <label for="canvas_base_url" class="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                            Canvas Instance URL
+                        </label>
+                        <input type="url" name="canvas_base_url" id="canvas_base_url" 
+                               value="{{ integration.canvas_base_url|default:'' }}"
+                               placeholder="https://university.instructure.com"
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                               required>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Enter your university's Canvas URL (e.g., https://university.instructure.com)
+                        </p>
+                    </div>
+
+                    <div>
+                        <label for="canvas_access_token" class="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                            Canvas Access Token
+                        </label>
+                        <input type="password" name="canvas_access_token" id="canvas_access_token" 
+                               value="{{ integration.canvas_access_token|default:'' }}"
+                               placeholder="Canvas API access token"
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                               required>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                            Generate an access token in your Canvas profile settings → Approved Integrations
+                        </p>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <label class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                Enable Canvas Integration
+                            </label>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">
+                                Automatically sync your Canvas data with tasks
+                            </p>
+                        </div>
+                        <input type="checkbox" name="is_enabled" 
+                               {% if integration.is_enabled %}checked{% endif %}
+                               class="toggle-switch">
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    Sync Assignments
+                                </label>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 text-xs">
+                                    Import course assignments as tasks
+                                </p>
+                            </div>
+                            <input type="checkbox" name="sync_assignments" 
+                                   {% if integration.sync_assignments %}checked{% endif %}
+                                   class="toggle-switch-small">
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    Sync To-dos
+                                </label>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 text-xs">
+                                    Import Canvas planner items
+                                </p>
+                            </div>
+                            <input type="checkbox" name="sync_todos" 
+                                   {% if integration.sync_todos %}checked{% endif %}
+                                   class="toggle-switch-small">
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <label class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    Sync Announcements
+                                </label>
+                                <p class="text-sm text-gray-500 dark:text-gray-400 text-xs">
+                                    Import course announcements
+                                </p>
+                            </div>
+                            <input type="checkbox" name="sync_announcements" 
+                                   {% if integration.sync_announcements %}checked{% endif %}
+                                   class="toggle-switch-small">
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="submit" class="btn-primary">
+                            Save Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Manual Sync Controls -->
+            {% if is_configured %}
+            <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+                    Manual Sync
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <button id="sync-assignments-btn" onclick="syncCanvasAssignments()" class="btn-secondary flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        <span class="sync-text">Sync Assignments</span>
+                    </button>
+                    
+                    <button id="sync-todos-btn" onclick="syncCanvasTodos()" class="btn-secondary flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                        </svg>
+                        <span class="sync-text">Sync To-dos</span>
+                    </button>
+                    
+                    <button id="sync-announcements-btn" onclick="syncCanvasAnnouncements()" class="btn-secondary flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+                        </svg>
+                        <span class="sync-text">Sync Announcements</span>
+                    </button>
+                    
+                    <button id="full-sync-btn" onclick="fullCanvasSync()" class="btn-primary flex items-center justify-center">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        <span class="sync-text">Full Sync</span>
+                    </button>
+                </div>
+
+                <div id="sync-result" class="mt-4 hidden">
+                    <!-- Sync results will be displayed here -->
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Status Panel -->
+        <div class="lg:col-span-1">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
+                    Integration Status
+                </h2>
+
+                <div class="space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Status</span>
+                        <span class="text-sm font-medium {% if integration.is_enabled %}text-green-600 dark:text-green-400{% else %}text-gray-500 dark:text-gray-400{% endif %}">
+                            {% if integration.is_enabled %}Active{% else %}Inactive{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Configured</span>
+                        <span class="text-sm font-medium {% if is_configured %}text-green-600 dark:text-green-400{% else %}text-red-600 dark:text-red-400{% endif %}">
+                            {% if is_configured %}Yes{% else %}No{% endif %}
+                        </span>
+                    </div>
+
+                    {% if integration.last_sync %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Last Sync</span>
+                        <span class="text-sm text-gray-900 dark:text-gray-100">
+                            {{ integration.last_sync|timesince }} ago
+                        </span>
+                    </div>
+                    {% endif %}
+
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600 dark:text-gray-300">Canvas URL</span>
+                        <span class="text-sm text-gray-900 dark:text-gray-100 truncate ml-2">
+                            {% if integration.canvas_base_url %}
+                                {{ integration.canvas_base_url|truncatechars:25 }}
+                            {% else %}
+                                Not set
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Sync Logs -->
+            {% if sync_logs %}
+            <div class="mt-6 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                    Recent Syncs
+                </h3>
+
+                <div class="space-y-3">
+                    {% for log in sync_logs %}
+                    <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <div>
+                            <div class="flex items-center">
+                                {% if log.status == 'success' %}
+                                    <svg class="w-4 h-4 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                                    </svg>
+                                {% elif log.status == 'partial' %}
+                                    <svg class="w-4 h-4 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                                    </svg>
+                                {% else %}
+                                    <svg class="w-4 h-4 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                    </svg>
+                                {% endif %}
+                                <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+                                    {{ log.get_sync_type_display }}
+                                </span>
+                            </div>
+                            <p class="text-xs text-gray-500 dark:text-gray-300 mt-1">
+                                {{ log.timestamp|timesince }} ago • 
+                                {% if log.assignments_synced %}{{ log.assignments_synced }} assignments{% endif %}
+                                {% if log.todos_synced %}{{ log.todos_synced }} todos{% endif %}
+                                {% if log.announcements_synced %}{{ log.announcements_synced }} announcements{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Global sync state management
+let isSyncing = false;
+
+function disableSyncButtons() {
+    const buttons = ['sync-assignments-btn', 'sync-todos-btn', 'sync-announcements-btn', 'full-sync-btn'];
+    buttons.forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = true;
+            btn.classList.add('opacity-50', 'cursor-not-allowed');
+            const text = btn.querySelector('.sync-text');
+            if (text) {
+                text.textContent = 'Syncing...';
+            }
+        }
+    });
+}
+
+function enableSyncButtons() {
+    const buttonData = [
+        { id: 'sync-assignments-btn', text: 'Sync Assignments' },
+        { id: 'sync-todos-btn', text: 'Sync To-dos' },
+        { id: 'sync-announcements-btn', text: 'Sync Announcements' },
+        { id: 'full-sync-btn', text: 'Full Sync' }
+    ];
+    
+    buttonData.forEach(({ id, text }) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            btn.disabled = false;
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            const textEl = btn.querySelector('.sync-text');
+            if (textEl) {
+                textEl.textContent = text;
+            }
+        }
+    });
+}
+
+function makeCanvasRequest(url, successMessage) {
+    if (isSyncing) {
+        console.log('Sync already in progress, ignoring request');
+        return;
+    }
+    
+    isSyncing = true;
+    disableSyncButtons();
+    showSyncLoading('Syncing Canvas data...');
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        showSyncResult(data);
+        isSyncing = false;
+        enableSyncButtons();
+        if (data.success) {
+            setTimeout(() => location.reload(), 2000);
+        }
+    })
+    .catch(error => {
+        showSyncResult({
+            success: false,
+            message: 'Network error occurred'
+        });
+        isSyncing = false;
+        enableSyncButtons();
+    });
+}
+
+function syncCanvasAssignments() {
+    makeCanvasRequest('{% url "planner:sync_canvas_assignments" %}', 'Assignments synced successfully!');
+}
+
+function syncCanvasTodos() {
+    makeCanvasRequest('{% url "planner:sync_canvas_todos" %}', 'To-dos synced successfully!');
+}
+
+function syncCanvasAnnouncements() {
+    makeCanvasRequest('{% url "planner:sync_canvas_announcements" %}', 'Announcements synced successfully!');
+}
+
+function fullCanvasSync() {
+    makeCanvasRequest('{% url "planner:sync_canvas_full" %}', 'Full sync completed successfully!');
+}
+
+function showSyncLoading(message) {
+    const resultDiv = document.getElementById('sync-result');
+    resultDiv.className = 'mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg';
+    resultDiv.innerHTML = `
+        <div class="flex items-center">
+            <svg class="animate-spin w-5 h-5 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-blue-800 dark:text-blue-400">${message}</span>
+        </div>
+    `;
+    resultDiv.classList.remove('hidden');
+}
+
+function showSyncResult(data) {
+    const resultDiv = document.getElementById('sync-result');
+    const isSuccess = data.success;
+    
+    resultDiv.className = `mt-4 p-4 rounded-lg ${
+        isSuccess 
+            ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+            : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+    }`;
+    
+    const iconColor = isSuccess ? 'text-green-500' : 'text-red-500';
+    const textColor = isSuccess ? 'text-green-800 dark:text-green-400' : 'text-red-800 dark:text-red-400';
+    
+    const icon = isSuccess 
+        ? '<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>'
+        : '<path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>';
+    
+    resultDiv.innerHTML = `
+        <div class="flex items-start">
+            <svg class="w-5 h-5 ${iconColor} mt-0.5 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                ${icon}
+            </svg>
+            <div>
+                <p class="${textColor} font-medium">${isSuccess ? 'Sync Completed' : 'Sync Failed'}</p>
+                <p class="${textColor} text-sm mt-1">${data.message}</p>
+            </div>
+        </div>
+    `;
+    
+    resultDiv.classList.remove('hidden');
+}
+</script>
+
+<style>
+.toggle-switch {
+    appearance: none;
+    width: 48px;
+    height: 24px;
+    background-color: #e5e7eb;
+    border-radius: 12px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.toggle-switch:checked {
+    background-color: #3b82f6;
+}
+
+.toggle-switch::before {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+}
+
+.toggle-switch:checked::before {
+    transform: translateX(24px);
+}
+
+.toggle-switch:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.toggle-switch-small {
+    appearance: none;
+    width: 36px;
+    height: 18px;
+    background-color: #e5e7eb;
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.toggle-switch-small:checked {
+    background-color: #3b82f6;
+}
+
+.toggle-switch-small::before {
+    content: '';
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.2s;
+}
+
+.toggle-switch-small:checked::before {
+    transform: translateX(18px);
+}
+</style>
+{% endblock %}

@@ -1,23 +1,18 @@
-"""
-Views for Google Calendar integration.
-"""
-import logging
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 from django.http import JsonResponse
-from django.contrib import messages
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
 from django.utils import timezone
 from datetime import datetime, timedelta
-import json
-
-from ..models import Task, GoogleCalendarIntegration, CalendarSyncLog
-from ..services.google_calendar_service import GoogleCalendarService
+import logging
 
 logger = logging.getLogger(__name__)
+
+# Global request counter for debugging
+sync_request_counter = 0
 
 
 class GoogleCalendarSettingsView(LoginRequiredMixin, TemplateView):
@@ -28,14 +23,19 @@ class GoogleCalendarSettingsView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         
         try:
+            from ..models import GoogleCalendarIntegration, CalendarSyncLog
             integration = GoogleCalendarIntegration.objects.get(user=self.request.user)
-        except GoogleCalendarIntegration.DoesNotExist:
+        except:
             integration = None
         
         # Get recent sync logs
-        sync_logs = CalendarSyncLog.objects.filter(
-            user=self.request.user
-        )[:10]
+        try:
+            from ..models import CalendarSyncLog
+            sync_logs = CalendarSyncLog.objects.filter(
+                user=self.request.user
+            )[:10]
+        except:
+            sync_logs = []
         
         context.update({
             'integration': integration,
@@ -56,6 +56,7 @@ class GoogleCalendarSettingsView(LoginRequiredMixin, TemplateView):
     def post(self, request, *args, **kwargs):
         """Handle settings updates."""
         try:
+            from ..models import GoogleCalendarIntegration
             integration, created = GoogleCalendarIntegration.objects.get_or_create(
                 user=request.user
             )
@@ -78,7 +79,41 @@ class GoogleCalendarSettingsView(LoginRequiredMixin, TemplateView):
 @require_POST
 def sync_to_google(request):
     """Sync tasks to Google Calendar."""
+    global sync_request_counter
+    sync_request_counter += 1
+    current_count = sync_request_counter
+    
+    # Get request ID from headers (if sent by client)
+    request_id = request.META.get('HTTP_X_REQUEST_ID', f'server-{current_count}')
+    
+    # COMPLETELY BLOCK AUTO-SYNC - Only allow manual sync
+    user_agent = request.META.get('HTTP_USER_AGENT', '')
+    referer = request.META.get('HTTP_REFERER', '')
+    request_method = request.method
+    request_path = request.get_full_path()
+    
+    logger.info(f"SYNC DEBUG: sync_to_google called #{current_count} (Request ID: {request_id}) for user {request.user.id} from IP {request.META.get('REMOTE_ADDR')}")
+    logger.info(f"SYNC DEBUG: Method: {request_method}, Path: {request_path}")
+    logger.info(f"SYNC DEBUG: User-Agent: {user_agent[:100]}...")
+    logger.info(f"SYNC DEBUG: Referer: {referer}")
+    logger.info(f"SYNC DEBUG: POST data: {dict(request.POST)}")
+    logger.info(f"SYNC DEBUG: Headers: {dict(request.headers)}")
+    
+    from ..models import SyncLock
+    
+    # Try to acquire sync lock with longer timeout to prevent browser retries
+    lock_acquired, lock_instance = SyncLock.acquire_lock(request.user, timeout_minutes=10)
+    if not lock_acquired:
+        logger.warning(f"SYNC DEBUG: sync_to_google #{current_count} (Request ID: {request_id}) BLOCKED - lock already exists for user {request.user.id}")
+        return JsonResponse({
+            'success': False,
+            'message': 'Another sync operation is already in progress. Please wait for it to complete.',
+            'request_id': request_id
+        })
+    
+    logger.info(f"SYNC DEBUG: sync_to_google #{current_count} (Request ID: {request_id}) PROCEEDING for user {request.user.id}")
     try:
+        from ..services.google_calendar_service import GoogleCalendarService
         service = GoogleCalendarService(request.user)
         result = service.sync_tasks_to_google()
         
@@ -106,12 +141,26 @@ def sync_to_google(request):
             'success': False,
             'message': f'Sync failed: {str(e)}'
         })
+    finally:
+        # Always release the sync lock
+        logger.info(f"SYNC DEBUG: sync_to_google #{current_count} (Request ID: {request_id}) FINISHED - releasing lock for user {request.user.id}")
+        SyncLock.release_lock(request.user)
 
 
 @login_required
 @require_POST
 def sync_from_google(request):
     """Sync events from Google Calendar."""
+    from ..models import SyncLock
+    
+    # Try to acquire sync lock
+    lock_acquired, lock_instance = SyncLock.acquire_lock(request.user, timeout_minutes=5)
+    if not lock_acquired:
+        return JsonResponse({
+            'success': False,
+            'message': 'Another sync operation is already in progress. Please wait for it to complete.'
+        })
+    
     try:
         # Get date range from request
         start_date = request.POST.get('start_date')
@@ -129,6 +178,7 @@ def sync_from_google(request):
         else:
             end_date = start_date + timedelta(days=30)
         
+        from ..services.google_calendar_service import GoogleCalendarService
         service = GoogleCalendarService(request.user)
         result = service.sync_from_google(start_date, end_date)
         
@@ -156,13 +206,34 @@ def sync_from_google(request):
             'success': False,
             'message': f'Sync failed: {str(e)}'
         })
+    finally:
+        # Always release the sync lock
+        SyncLock.release_lock(request.user)
 
 
 @login_required
 @require_POST
 def full_sync(request):
     """Perform a full two-way sync."""
+    global sync_request_counter
+    sync_request_counter += 1
+    current_count = sync_request_counter
+    
+    logger.info(f"SYNC DEBUG: full_sync called #{current_count} for user {request.user.id} from IP {request.META.get('REMOTE_ADDR')}")
+    from ..models import SyncLock
+    
+    # Try to acquire sync lock with longer timeout for full sync
+    lock_acquired, lock_instance = SyncLock.acquire_lock(request.user, timeout_minutes=10)
+    if not lock_acquired:
+        logger.warning(f"SYNC DEBUG: full_sync #{current_count} BLOCKED - lock already exists for user {request.user.id}")
+        return JsonResponse({
+            'success': False,
+            'message': 'Another sync operation is already in progress. Please wait for it to complete.'
+        })
+    
+    logger.info(f"SYNC DEBUG: full_sync #{current_count} PROCEEDING for user {request.user.id}")
     try:
+        from ..services.google_calendar_service import GoogleCalendarService
         service = GoogleCalendarService(request.user)
         
         # First sync tasks to Google
@@ -201,12 +272,17 @@ def full_sync(request):
             'success': False,
             'message': f'Full sync failed: {str(e)}'
         })
+    finally:
+        # Always release the sync lock
+        logger.info(f"SYNC DEBUG: full_sync #{current_count} FINISHED - releasing lock for user {request.user.id}")
+        SyncLock.release_lock(request.user)
 
 
 @login_required
 def sync_status(request):
     """Get sync status and recent logs."""
     try:
+        from ..models import GoogleCalendarIntegration, CalendarSyncLog
         integration = GoogleCalendarIntegration.objects.filter(user=request.user).first()
         recent_logs = CalendarSyncLog.objects.filter(user=request.user)[:5]
         
@@ -245,6 +321,7 @@ def sync_status(request):
 def toggle_auto_sync(request):
     """Enable/disable automatic syncing."""
     try:
+        from ..models import GoogleCalendarIntegration
         integration, created = GoogleCalendarIntegration.objects.get_or_create(
             user=request.user
         )
@@ -264,3 +341,23 @@ def toggle_auto_sync(request):
             'success': False,
             'message': f'Failed to toggle auto-sync: {str(e)}'
         })
+
+
+class GoogleConnectionView(LoginRequiredMixin, TemplateView):
+    """View for managing Google account connection and troubleshooting."""
+    template_name = 'planner/google_connection.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        try:
+            from ..models import GoogleCalendarIntegration
+            integration = GoogleCalendarIntegration.objects.get(user=self.request.user)
+        except:
+            integration = None
+        
+        context.update({
+            'integration': integration,
+        })
+        
+        return context

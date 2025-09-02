@@ -1,0 +1,425 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Canvas Data - TaskFlow{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            Canvas LMS Data
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400">
+            View and manage your synced Canvas assignments, todos, and announcements.
+        </p>
+    </div>
+
+    <!-- Data Tabs -->
+    <div class="mb-8">
+        <nav class="flex space-x-8" aria-label="Tabs">
+            <button onclick="showTab('assignments')" id="assignments-tab" class="tab-button tab-active">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Assignments ({{ assignments|length }})
+            </button>
+            <button onclick="showTab('todos')" id="todos-tab" class="tab-button">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                To-dos ({{ todos|length }})
+            </button>
+            <button onclick="showTab('announcements')" id="announcements-tab" class="tab-button">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+                </svg>
+                Announcements ({{ announcements|length }})
+            </button>
+        </nav>
+    </div>
+
+    <!-- Assignments Tab -->
+    <div id="assignments-content" class="tab-content">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    Canvas Assignments
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                    Assignments imported from your Canvas courses
+                </p>
+            </div>
+            
+            {% if assignments %}
+                <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for assignment in assignments %}
+                    <div class="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                                        {{ assignment.title }}
+                                    </h3>
+                                    {% if assignment.task %}
+                                        <span class="ml-3 px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">
+                                            Task Created
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                    <span class="font-medium text-blue-600 dark:text-blue-400">{{ assignment.course_name }}</span>
+                                    {% if assignment.due_date %}
+                                        <span class="mx-2">•</span>
+                                        <span>Due: {{ assignment.due_date|date:"M j, Y g:i A" }}</span>
+                                    {% endif %}
+                                    {% if assignment.points_possible %}
+                                        <span class="mx-2">•</span>
+                                        <span>{{ assignment.points_possible }} points</span>
+                                    {% endif %}
+                                </div>
+                                
+                                {% if assignment.description %}
+                                <p class="text-gray-600 dark:text-gray-300 text-sm mb-3">
+                                    {{ assignment.description|truncatewords:30|striptags }}
+                                </p>
+                                {% endif %}
+                                
+                                <div class="flex items-center space-x-4">
+                                    <a href="{{ assignment.html_url }}" target="_blank" rel="noopener" 
+                                       class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
+                                        View in Canvas ↗
+                                    </a>
+                                    {% if assignment.task %}
+                                        <a href="{% url 'planner:task_detail' pk=assignment.task.pk %}" 
+                                           class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 text-sm font-medium">
+                                            View Task
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="p-12 text-center">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <p class="text-gray-500 dark:text-gray-400">No assignments found. Try syncing your Canvas data.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Todos Tab -->
+    <div id="todos-content" class="tab-content hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    Canvas To-dos
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                    Planner items imported from Canvas
+                </p>
+            </div>
+            
+            {% if todos %}
+                <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for todo in todos %}
+                    <div class="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                                        {{ todo.title }}
+                                    </h3>
+                                    {% if todo.task %}
+                                        <span class="ml-3 px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">
+                                            Task Created
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                    <span class="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 rounded">{{ todo.plannable_type }}</span>
+                                    {% if todo.course_name %}
+                                        <span class="mx-2 font-medium text-blue-600 dark:text-blue-400">{{ todo.course_name }}</span>
+                                    {% endif %}
+                                    {% if todo.due_date %}
+                                        <span class="mx-2">•</span>
+                                        <span>Due: {{ todo.due_date|date:"M j, Y g:i A" }}</span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="flex items-center space-x-4">
+                                    <a href="{{ todo.html_url }}" target="_blank" rel="noopener" 
+                                       class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
+                                        View in Canvas ↗
+                                    </a>
+                                    {% if todo.task %}
+                                        <a href="{% url 'planner:task_detail' pk=todo.task.pk %}" 
+                                           class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 text-sm font-medium">
+                                            View Task
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="p-12 text-center">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    <p class="text-gray-500 dark:text-gray-400">No todos found. Try syncing your Canvas data.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Announcements Tab -->
+    <div id="announcements-content" class="tab-content hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                    Canvas Announcements
+                </h2>
+                <p class="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                    Recent announcements from your Canvas courses
+                </p>
+            </div>
+            
+            {% if announcements %}
+                <div class="divide-y divide-gray-200 dark:divide-gray-700">
+                    {% for announcement in announcements %}
+                    <div class="p-6 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center mb-2">
+                                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+                                        {{ announcement.title }}
+                                    </h3>
+                                    {% if announcement.task %}
+                                        <span class="ml-3 px-2 py-1 text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 rounded-full">
+                                            Task Created
+                                        </span>
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                    <span class="font-medium text-blue-600 dark:text-blue-400">{{ announcement.course_name }}</span>
+                                    <span class="mx-2">•</span>
+                                    <span>Posted: {{ announcement.posted_at|date:"M j, Y g:i A" }}</span>
+                                </div>
+                                
+                                {% if announcement.message %}
+                                <p class="text-gray-600 dark:text-gray-300 text-sm mb-3">
+                                    {{ announcement.message|truncatewords:50|striptags }}
+                                </p>
+                                {% endif %}
+                                
+                                <div class="flex items-center space-x-4">
+                                    <a href="{{ announcement.html_url }}" target="_blank" rel="noopener" 
+                                       class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-sm font-medium">
+                                        View in Canvas ↗
+                                    </a>
+                                    {% if announcement.task %}
+                                        <a href="{% url 'planner:task_detail' pk=announcement.task.pk %}" 
+                                           class="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300 text-sm font-medium">
+                                            View Task
+                                        </a>
+                                    {% else %}
+                                        <button onclick="createTaskFromAnnouncement({{ announcement.id }})" 
+                                                class="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-sm font-medium">
+                                            Create Task
+                                        </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="p-12 text-center">
+                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path>
+                    </svg>
+                    <p class="text-gray-500 dark:text-gray-400">No announcements found. Try syncing your Canvas data.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Task Creation Modal -->
+<div id="task-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
+                Create Task from Announcement
+            </h3>
+            
+            <form id="task-form">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Title</label>
+                        <input type="text" id="task-title" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100" required>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                        <textarea id="task-description" rows="3" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"></textarea>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Priority</label>
+                            <select id="task-priority" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                                <option value="1">Low</option>
+                                <option value="2" selected>Medium</option>
+                                <option value="3">High</option>
+                                <option value="4">Urgent</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Hours</label>
+                            <input type="number" id="task-hours" step="0.5" min="0.5" value="1" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Deadline</label>
+                        <input type="datetime-local" id="task-deadline" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100">
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button type="button" onclick="closeTaskModal()" class="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Create Task
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentAnnouncementId = null;
+
+function showTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.add('hidden');
+    });
+    
+    // Remove active class from all tabs
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('tab-active');
+        button.classList.add('tab-inactive');
+    });
+    
+    // Show selected tab content
+    document.getElementById(tabName + '-content').classList.remove('hidden');
+    
+    // Add active class to selected tab
+    document.getElementById(tabName + '-tab').classList.remove('tab-inactive');
+    document.getElementById(tabName + '-tab').classList.add('tab-active');
+}
+
+function createTaskFromAnnouncement(announcementId) {
+    currentAnnouncementId = announcementId;
+    
+    // Fetch announcement data
+    fetch(`{% url 'planner:canvas_announcement_to_task' announcement_id=0 %}`.replace('0', announcementId))
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const announcement = data.announcement;
+            document.getElementById('task-title').value = `[${announcement.course_name}] ${announcement.title}`;
+            document.getElementById('task-description').value = announcement.message.substring(0, 500); // Limit description length
+            
+            // Set default deadline to 1 week from now
+            const nextWeek = new Date();
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            document.getElementById('task-deadline').value = nextWeek.toISOString().slice(0, 16);
+            
+            document.getElementById('task-modal').classList.remove('hidden');
+            document.getElementById('task-modal').classList.add('flex');
+        }
+    })
+    .catch(error => {
+        console.error('Error fetching announcement data:', error);
+        alert('Failed to load announcement data');
+    });
+}
+
+function closeTaskModal() {
+    document.getElementById('task-modal').classList.add('hidden');
+    document.getElementById('task-modal').classList.remove('flex');
+    currentAnnouncementId = null;
+}
+
+document.getElementById('task-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    if (!currentAnnouncementId) return;
+    
+    const formData = new FormData();
+    formData.append('title', document.getElementById('task-title').value);
+    formData.append('description', document.getElementById('task-description').value);
+    formData.append('priority', document.getElementById('task-priority').value);
+    formData.append('estimated_hours', document.getElementById('task-hours').value);
+    formData.append('deadline', document.getElementById('task-deadline').value);
+    formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+    
+    fetch(`{% url 'planner:canvas_announcement_to_task' announcement_id=0 %}`.replace('0', currentAnnouncementId), {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Task created successfully!');
+            closeTaskModal();
+            location.reload(); // Refresh to show updated data
+        } else {
+            alert('Error creating task: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error creating task:', error);
+        alert('Failed to create task');
+    });
+});
+
+// Close modal when clicking outside
+document.getElementById('task-modal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeTaskModal();
+    }
+});
+</script>
+
+<style>
+.tab-button {
+    @apply flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors;
+}
+
+.tab-active {
+    @apply bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300;
+}
+
+.tab-inactive {
+    @apply text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700;
+}
+</style>
+{% endblock %}

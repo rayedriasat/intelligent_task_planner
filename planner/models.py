@@ -20,6 +20,12 @@ class Task(models.Model):
         ('in_progress', 'In Progress'),
         ('completed', 'Completed'),
     ]
+    
+    SOURCE_CHOICES = [
+        ('manual', 'Manual Entry'),
+        ('canvas', 'Canvas LMS'),
+        ('google_calendar', 'Google Calendar'),
+    ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tasks')
     title = models.CharField(max_length=255)
@@ -33,11 +39,18 @@ class Task(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
     is_locked = models.BooleanField(default=False)
     actual_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual')
+    external_id = models.CharField(max_length=255, blank=True, null=True, help_text="ID from external system (Canvas, Google Calendar, etc.)")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ['deadline', 'priority']
+        indexes = [
+            models.Index(fields=['user', 'source']),
+            models.Index(fields=['user', 'external_id']),
+            models.Index(fields=['user', 'status', 'deadline']),
+        ]
 
     def __str__(self):
         return self.title
@@ -562,3 +575,152 @@ class SyncLock(models.Model):
     
     def __str__(self):
         return f"Sync lock for {self.user.username} at {self.locked_at}"
+
+
+# Canvas LMS Integration Models
+
+class CanvasIntegration(models.Model):
+    """Store Canvas LMS integration settings for each user."""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='canvas_integration')
+    canvas_base_url = models.URLField(help_text="Canvas instance URL (e.g., https://university.instructure.com)")
+    canvas_access_token = models.CharField(max_length=500, blank=True, help_text="Canvas API access token")
+    is_enabled = models.BooleanField(default=True)
+    sync_assignments = models.BooleanField(default=True)
+    sync_todos = models.BooleanField(default=True)
+    sync_announcements = models.BooleanField(default=True)
+    last_sync = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Canvas integration for {self.user.username}"
+
+    @property
+    def is_configured(self):
+        """Check if Canvas integration is properly configured."""
+        return bool(self.canvas_base_url and self.canvas_access_token)
+
+
+class CanvasAssignment(models.Model):
+    """Store Canvas assignment data."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='canvas_assignments')
+    canvas_id = models.CharField(max_length=100, help_text="Canvas assignment ID")
+    course_id = models.CharField(max_length=100, help_text="Canvas course ID")
+    course_name = models.CharField(max_length=255, blank=True)
+    title = models.CharField(max_length=500)
+    description = models.TextField(blank=True)
+    due_date = models.DateTimeField(null=True, blank=True)
+    points_possible = models.FloatField(null=True, blank=True)
+    submission_types = models.JSONField(default=list)
+    html_url = models.URLField(help_text="Link to Canvas assignment")
+    
+    # Task relationship
+    task = models.OneToOneField(Task, on_delete=models.CASCADE, null=True, blank=True, related_name='canvas_assignment')
+    
+    # Sync tracking
+    last_synced = models.DateTimeField(auto_now=True)
+    canvas_updated_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ['user', 'canvas_id']
+        indexes = [
+            models.Index(fields=['user', 'canvas_id']),
+            models.Index(fields=['user', 'due_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.course_name}"
+
+
+class CanvasTodo(models.Model):
+    """Store Canvas planner/todo items."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='canvas_todos')
+    canvas_id = models.CharField(max_length=100, help_text="Canvas planner item ID")
+    plannable_type = models.CharField(max_length=50, help_text="Type of Canvas item (assignment, discussion_topic, etc)")
+    plannable_id = models.CharField(max_length=100, help_text="ID of the plannable item")
+    title = models.CharField(max_length=500)
+    course_id = models.CharField(max_length=100, null=True, blank=True)
+    course_name = models.CharField(max_length=255, blank=True)
+    due_date = models.DateTimeField(null=True, blank=True)
+    html_url = models.URLField(help_text="Link to Canvas item")
+    
+    # Task relationship
+    task = models.OneToOneField(Task, on_delete=models.CASCADE, null=True, blank=True, related_name='canvas_todo')
+    
+    # Sync tracking
+    last_synced = models.DateTimeField(auto_now=True)
+    canvas_updated_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ['user', 'canvas_id']
+        indexes = [
+            models.Index(fields=['user', 'plannable_type']),
+            models.Index(fields=['user', 'due_date']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} ({self.plannable_type})"
+
+
+class CanvasAnnouncement(models.Model):
+    """Store Canvas course announcements."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='canvas_announcements')
+    canvas_id = models.CharField(max_length=100, help_text="Canvas announcement ID")
+    course_id = models.CharField(max_length=100, help_text="Canvas course ID")
+    course_name = models.CharField(max_length=255, blank=True)
+    title = models.CharField(max_length=500)
+    message = models.TextField(blank=True)
+    posted_at = models.DateTimeField()
+    html_url = models.URLField(help_text="Link to Canvas announcement")
+    
+    # Task relationship (optional - user can create tasks from announcements)
+    task = models.OneToOneField(Task, on_delete=models.CASCADE, null=True, blank=True, related_name='canvas_announcement')
+    
+    # Sync tracking
+    last_synced = models.DateTimeField(auto_now=True)
+    canvas_updated_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        unique_together = ['user', 'canvas_id']
+        indexes = [
+            models.Index(fields=['user', 'posted_at']),
+            models.Index(fields=['user', 'course_id']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.course_name}"
+
+
+class CanvasSyncLog(models.Model):
+    """Log Canvas sync operations for debugging and monitoring."""
+    SYNC_TYPES = [
+        ('manual', 'Manual Sync'),
+        ('automatic', 'Automatic Sync'),
+        ('assignments', 'Assignments Only'),
+        ('todos', 'To-dos Only'), 
+        ('announcements', 'Announcements Only'),
+    ]
+
+    STATUS_CHOICES = [
+        ('success', 'Success'),
+        ('partial', 'Partial Success'),
+        ('failed', 'Failed'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='canvas_sync_logs')
+    sync_type = models.CharField(max_length=20, choices=SYNC_TYPES, default='manual')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    assignments_synced = models.IntegerField(default=0)
+    todos_synced = models.IntegerField(default=0)
+    announcements_synced = models.IntegerField(default=0)
+    tasks_created = models.IntegerField(default=0)
+    tasks_updated = models.IntegerField(default=0)
+    error_message = models.TextField(blank=True)
+    sync_duration = models.DurationField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+    def __str__(self):
+        return f"Canvas {self.get_sync_type_display()} - {self.status} ({self.timestamp})"

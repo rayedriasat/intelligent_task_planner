@@ -78,4 +78,16 @@ urlpatterns = [
     path('google-calendar/full-sync/', views.full_sync, name='full_sync'),
     path('google-calendar/status/', views.sync_status, name='sync_status'),
     path('google-calendar/toggle-auto/', views.toggle_auto_sync, name='toggle_auto_sync'),
+    
+    # Canvas LMS Integration
+    path('canvas/settings/', views.CanvasSettingsView.as_view(), name='canvas_settings'),
+    path('canvas/data/', views.CanvasDataView.as_view(), name='canvas_data'),
+    path('canvas/connection-status/', views.canvas_connection_status, name='canvas_connection_status'),
+    path('canvas/sync-assignments/', views.sync_canvas_assignments, name='sync_canvas_assignments'),
+    path('canvas/sync-todos/', views.sync_canvas_todos, name='sync_canvas_todos'),
+    path('canvas/sync-announcements/', views.sync_canvas_announcements, name='sync_canvas_announcements'),
+    path('canvas/full-sync/', views.sync_canvas_full, name='sync_canvas_full'),
+    path('canvas/status/', views.canvas_sync_status, name='canvas_sync_status'),
+    path('canvas/toggle/', views.toggle_canvas_integration, name='toggle_canvas_integration'),
+    path('canvas/announcements/<int:announcement_id>/to-task/', views.canvas_announcement_to_task, name='canvas_announcement_to_task'),
 ]

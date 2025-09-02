@@ -227,6 +227,11 @@ LOGOUT_REDIRECT_URL = '/'
 OPENROUTER_API_KEY = env('OPENROUTER_API_KEY', default='')
 OPENROUTER_API_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
+# Canvas LMS Integration
+# Canvas integration uses user-provided access tokens instead of OAuth2.
+# Users configure their Canvas instance URL and access token in the Canvas settings page.
+# Access tokens can be generated from Canvas Profile -> Settings -> Approved Integrations -> New Access Token
+
 # Stripe Settings
 STRIPE_PUBLIC_KEY = env('STRIPE_PUBLIC_KEY', default='')
 STRIPE_SECRET_KEY = env('STRIPE_SECRET_KEY', default='')
