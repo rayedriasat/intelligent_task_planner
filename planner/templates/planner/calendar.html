@@ -229,6 +229,19 @@
                             </div>
                         </div>
                         {% endfor %}
+                        
+                        <!-- Current Time Indicator (only for today) -->
+                        {% if day.is_today %}
+                        <div x-show="shouldShowCurrentTimeIndicator()" 
+                             x-ref="timeIndicator"
+                             class="current-time-indicator-day"
+                             :style="'top: ' + getCurrentTimePosition() + 'rem;'"
+                             x-init="console.log('Current time indicator initialized for today:', '{{ day.date|date:'Y-m-d' }}')">
+                            <div class="current-time-line"></div>
+                            <div class="current-time-dot"></div>
+                            <div class="current-time-label" x-text="getCurrentTimeLabel()"></div>
+                        </div>
+                        {% endif %}
                     </div>
                     {% endfor %}
                 </div>
@@ -616,6 +629,117 @@
                                 :disabled="!targetDateTime"
                                 class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors">
                             Schedule Urgent Task
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Overload Resolution Modal -->
+    <div x-show="showOverloadModal" 
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50"
+         style="display: none;">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="p-6">
+                    <!-- Header -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h3 class="text-lg font-medium text-gray-900 dark:text-white flex items-center space-x-2">
+                                <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                </svg>
+                                <span>Schedule Overload Detected</span>
+                            </h3>
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                You have more tasks than available time. Choose a resolution strategy.
+                            </p>
+                        </div>
+                        <button @click="closeOverloadModal()" class="text-gray-400 hover:text-gray-600">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- Overload Summary -->
+                    <div x-show="overloadInfo" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-red-700 dark:text-red-300">Required Time:</span>
+                                <span class="font-medium text-red-800 dark:text-red-200" x-text="overloadInfo?.total_required_hours + ' hours'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-red-700 dark:text-red-300">Available Time:</span>
+                                <span class="font-medium text-red-800 dark:text-red-200" x-text="overloadInfo?.total_available_hours + ' hours'"></span>
+                            </div>
+                            <div class="flex justify-between border-t border-red-200 dark:border-red-800 pt-2">
+                                <span class="text-red-700 dark:text-red-300 font-medium">Excess:</span>
+                                <span class="font-bold text-red-800 dark:text-red-200" x-text="overloadInfo?.excess_hours + ' hours (' + overloadInfo?.overload_percentage + '% over capacity)'"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Resolution Options -->
+                    <div class="space-y-4">
+                        <h4 class="font-semibold text-gray-900 dark:text-white">Choose Resolution Strategy:</h4>
+                        
+                        <!-- Compress Schedule Option -->
+                        <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                             @click="selectedResolution = 'compress'">
+                            <div class="flex items-start space-x-3">
+                                <input type="radio" x-model="selectedResolution" value="compress" class="mt-1">
+                                <div class="flex-1">
+                                    <h5 class="font-medium text-gray-900 dark:text-white">Compress Schedule</h5>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                        Reduce all task durations proportionally to fit within available time. 
+                                        <span x-show="overloadInfo" class="font-medium">
+                                            Each task will be compressed to <span x-text="Math.round((1 / overloadInfo?.overload_ratio) * 100) + '%'"></span> of original duration.
+                                        </span>
+                                    </p>
+                                    <div class="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                                        ✓ Keeps all tasks scheduled ✓ Proportional reduction ✓ Quick solution
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Prioritize & Schedule Option -->
+                        <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
+                             @click="selectedResolution = 'prioritize'">
+                            <div class="flex items-start space-x-3">
+                                <input type="radio" x-model="selectedResolution" value="prioritize" class="mt-1">
+                                <div class="flex-1">
+                                    <h5 class="font-medium text-gray-900 dark:text-white">Prioritize & Schedule</h5>
+                                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                                        Schedule high-priority and deadline-critical tasks first. Tasks with distant deadlines will remain unscheduled.
+                                    </p>
+                                    <div class="mt-2 text-xs text-green-600 dark:text-green-400">
+                                        ✓ Preserves task durations ✓ Deadline-aware ✓ Priority-based selection
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Actions -->
+                    <div class="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <button @click="closeOverloadModal()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                            Cancel
+                        </button>
+                        <button @click="executeOverloadResolution()"
+                                :disabled="!selectedResolution || isResolvingOverload"
+                                class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors">
+                            <span x-show="!isResolvingOverload">Apply Resolution</span>
+                            <span x-show="isResolvingOverload">Processing...</span>
                         </button>
                     </div>
                 </div>
@@ -1053,6 +1177,49 @@
 .dark .drag-over {
     background-color: #1e40af !important;
 }
+
+/* Current Time Indicator (Day-specific) */
+.current-time-indicator-day {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    z-index: 15;
+}
+
+.current-time-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background-color: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.current-time-dot {
+    position: absolute;
+    left: -6px;
+    top: -5px;
+    width: 12px;
+    height: 12px;
+    background-color: #ef4444;
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.5);
+}
+
+.current-time-label {
+    position: absolute;
+    left: 12px;
+    top: -10px;
+    background-color: #ef4444;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
 </style>
 
 <script>
@@ -1097,12 +1264,24 @@ function calendarApp() {
         newTaskPriority: 2,
         isScheduling: false,
         
+        // Overload resolution modal state
+        showOverloadModal: false,
+        overloadInfo: null,
+        selectedResolution: '',
+        isResolvingOverload: false,
+        
         init() {
             console.log('✅ Calendar component initialized successfully!');
             console.log('Alpine.js version:', window.Alpine ? 'loaded' : 'NOT loaded');
             console.log('CSRF token available:', this.getCSRFToken() ? 'yes' : 'NO');
             console.log('Component context type:', typeof this);
             this.loadUnscheduledTasks();
+            
+            // Update current time indicator every minute
+            this.updateCurrentTimeIndicator();
+            setInterval(() => {
+                this.updateCurrentTimeIndicator();
+            }, 60000); // Update every minute
             
             // Test if buttons are working - add a simple test
             setTimeout(() => {
@@ -1528,6 +1707,37 @@ function calendarApp() {
             console.log('DEBUG: reoptimizeSchedule() called');
             this.isOptimizing = true;
             
+            // First check for overload before proceeding with optimization
+            fetch('{% url "planner:check_overload" %}', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.isOptimizing = false;
+                
+                if (data.is_overloaded) {
+                    // Show overload resolution modal
+                    this.openOverloadModal(data.overload_data);
+                } else {
+                    // Proceed with normal optimization
+                    this.proceedWithOptimization();
+                }
+            })
+            .catch(error => {
+                this.isOptimizing = false;
+                console.error('Error checking overload:', error);
+                // Fallback to normal optimization if check fails
+                this.proceedWithOptimization();
+            });
+        },
+        
+        proceedWithOptimization() {
+            this.isOptimizing = true;
+            
             fetch('{% url "planner:reoptimize_week" %}', {
                 method: 'POST',
                 headers: {
@@ -1861,6 +2071,113 @@ function calendarApp() {
                 console.error('Error applying AI suggestions:', error);
                 this.showToast('Network error while applying suggestions', 'error');
             });
+        },
+        
+        // Overload Resolution Functions
+        openOverloadModal(overloadData) {
+            this.overloadInfo = overloadData;
+            this.selectedResolution = '';
+            this.showOverloadModal = true;
+            this.isResolvingOverload = false;
+        },
+        
+        closeOverloadModal() {
+            this.showOverloadModal = false;
+            this.overloadInfo = null;
+            this.selectedResolution = '';
+            this.isResolvingOverload = false;
+        },
+        
+        executeOverloadResolution() {
+            if (!this.selectedResolution || this.isResolvingOverload) return;
+            
+            this.isResolvingOverload = true;
+            
+            const endpoint = this.selectedResolution === 'compress' 
+                ? '{% url "planner:compress_schedule" %}'
+                : '{% url "planner:prioritize_schedule" %}';
+            
+            fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': this.getCSRFToken()
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                this.isResolvingOverload = false;
+                
+                if (data.success) {
+                    let message = this.selectedResolution === 'compress' 
+                        ? `Schedule compressed! All tasks reduced to ${Math.round(data.compression_ratio * 100)}% of original duration.`
+                        : `Priority scheduling complete! ${data.scheduled_count} tasks scheduled, ${data.unscheduled_count} tasks remain unscheduled.`;
+                    
+                    this.showToast(message, 'success');
+                    this.closeOverloadModal();
+                    
+                    // Show additional info if available
+                    if (data.details) {
+                        setTimeout(() => {
+                            alert(`Details:\n${data.details}`);
+                        }, 1500);
+                    }
+                    
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
+                }
+            })
+            .catch(error => {
+                this.isResolvingOverload = false;
+                console.error('Error:', error);
+                this.showToast('Network error during resolution', 'error');
+            });
+        },
+        
+        // Current Time Indicator Functions
+        shouldShowCurrentTimeIndicator() {
+            // Only show if current time is within calendar hours (6 AM to 11 PM)
+            const now = new Date();
+            const currentHour = now.getHours();
+            const withinCalendarHours = currentHour >= 6 && currentHour < 24;
+            
+            console.log(`Current hour: ${currentHour}, Within calendar hours: ${withinCalendarHours}`);
+            return withinCalendarHours;
+        },
+        
+        getCurrentTimePosition() {
+            const now = new Date();
+            const hours = now.getHours();
+            const minutes = now.getMinutes();
+            
+            // Calculate position: each hour is 4rem tall, minutes are proportional
+            // Adjust for calendar starting at 6 AM (offset by -6 hours)
+            const adjustedHours = hours - 6; // Calendar starts at 6 AM
+            const hourPosition = (adjustedHours * 4) + (minutes / 60 * 4);
+            
+            console.log(`Current time: ${hours}:${minutes.toString().padStart(2, '0')}, Position: ${hourPosition}rem`);
+            return Math.max(0, hourPosition); // Don't show negative positions
+        },
+        
+        getCurrentTimeLabel() {
+            const now = new Date();
+            return now.toLocaleTimeString('en-US', { 
+                hour: 'numeric', 
+                minute: '2-digit',
+                hour12: true 
+            });
+        },
+        
+        updateCurrentTimeIndicator() {
+            // Force reactivity update by triggering a state change
+            // Alpine.js will automatically re-evaluate reactive expressions
+            console.log('Updating current time indicator...');
+            
+            // Force re-evaluation of time-dependent properties
+            if (this.$refs && this.$refs.timeIndicator) {
+                this.$refs.timeIndicator.style.top = this.getCurrentTimePosition() + 'rem';
+            }
         },
         
         // Google Calendar Integration Functions

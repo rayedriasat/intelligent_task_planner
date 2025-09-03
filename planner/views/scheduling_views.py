@@ -456,3 +456,196 @@ def sacrifice_tasks(request):
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def check_overload(request):
+    """Check if the current schedule would be overloaded and return overload information."""
+    try:
+        engine = SchedulingEngine(request.user)
+        
+        # Get all unscheduled tasks
+        unscheduled_tasks = list(request.user.tasks.filter(
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        ))
+        
+        if not unscheduled_tasks:
+            return JsonResponse({
+                'is_overloaded': False,
+                'message': 'No unscheduled tasks found'
+            })
+        
+        # Get available time blocks
+        time_blocks = list(request.user.time_blocks.all())
+        available_slots = engine._generate_available_slots(time_blocks)
+        
+        # Calculate total required vs available time
+        total_required_hours = sum(float(task.estimated_hours) for task in unscheduled_tasks)
+        total_available_hours = sum(engine._slot_duration(slot) for slot in available_slots)
+        
+        if total_required_hours > total_available_hours:
+            excess_hours = total_required_hours - total_available_hours
+            overload_ratio = total_required_hours / total_available_hours if total_available_hours > 0 else float('inf')
+            overload_percentage = round(((total_required_hours - total_available_hours) / total_available_hours) * 100, 1) if total_available_hours > 0 else 100
+            
+            return JsonResponse({
+                'is_overloaded': True,
+                'overload_data': {
+                    'total_required_hours': round(total_required_hours, 1),
+                    'total_available_hours': round(total_available_hours, 1),
+                    'excess_hours': round(excess_hours, 1),
+                    'overload_ratio': round(overload_ratio, 2),
+                    'overload_percentage': overload_percentage,
+                    'task_count': len(unscheduled_tasks)
+                }
+            })
+        else:
+            return JsonResponse({
+                'is_overloaded': False,
+                'available_capacity': round(total_available_hours - total_required_hours, 1)
+            })
+            
+    except Exception as e:
+        logger.error(f"Check overload error: {e}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+@require_POST
+def compress_schedule(request):
+    """Compress all task durations proportionally to fit within available time."""
+    try:
+        engine = SchedulingEngine(request.user)
+        
+        # Get all unscheduled tasks
+        unscheduled_tasks = list(request.user.tasks.filter(
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        ))
+        
+        if not unscheduled_tasks:
+            return JsonResponse({
+                'success': False,
+                'error': 'No unscheduled tasks to compress'
+            })
+        
+        # Get available time blocks
+        time_blocks = list(request.user.time_blocks.all())
+        available_slots = engine._generate_available_slots(time_blocks)
+        
+        # Calculate compression ratio
+        total_required_hours = sum(float(task.estimated_hours) for task in unscheduled_tasks)
+        total_available_hours = sum(engine._slot_duration(slot) for slot in available_slots)
+        
+        if total_required_hours <= total_available_hours:
+            return JsonResponse({
+                'success': False,
+                'error': 'No compression needed - sufficient time available'
+            })
+        
+        compression_ratio = total_available_hours / total_required_hours
+        
+        # Apply compression to all tasks
+        with transaction.atomic():
+            for task in unscheduled_tasks:
+                original_hours = float(task.estimated_hours)
+                compressed_hours = round(original_hours * compression_ratio, 1)
+                # Ensure minimum task duration of 0.5 hours
+                task.estimated_hours = max(compressed_hours, 0.5)
+                task.save()
+        
+        # Now schedule the compressed tasks
+        scheduled_tasks, remaining_unscheduled = engine.calculate_schedule(unscheduled_tasks)
+        
+        # Save scheduled tasks
+        with transaction.atomic():
+            for task in scheduled_tasks:
+                task.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Schedule compressed! {len(scheduled_tasks)} tasks scheduled.',
+            'compression_ratio': round(compression_ratio, 2),
+            'scheduled_count': len(scheduled_tasks),
+            'unscheduled_count': len(remaining_unscheduled),
+            'details': f'All task durations reduced to {round(compression_ratio * 100)}% of original length to fit available time.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Compress schedule error: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@require_POST
+def prioritize_schedule(request):
+    """Schedule tasks based on priority and deadline, leaving distant-deadline tasks unscheduled."""
+    try:
+        engine = SchedulingEngine(request.user)
+        
+        # Get all unscheduled tasks
+        unscheduled_tasks = list(request.user.tasks.filter(
+            start_time__isnull=True,
+            status__in=['todo', 'in_progress']
+        ))
+        
+        if not unscheduled_tasks:
+            return JsonResponse({
+                'success': False,
+                'error': 'No unscheduled tasks to prioritize'
+            })
+        
+        # Sort tasks by priority and deadline urgency
+        def calculate_priority_score(task):
+            # Lower score = higher priority
+            days_until_deadline = (task.deadline - timezone.now().date()).days if task.deadline else 999
+            urgency_factor = max(1, days_until_deadline) 
+            priority_factor = task.priority  # 1=High, 4=Low
+            return priority_factor * urgency_factor
+        
+        sorted_tasks = sorted(unscheduled_tasks, key=calculate_priority_score)
+        
+        # Get available time blocks
+        time_blocks = list(request.user.time_blocks.all())
+        available_slots = engine._generate_available_slots(time_blocks)
+        total_available_hours = sum(engine._slot_duration(slot) for slot in available_slots)
+        
+        # Schedule tasks in priority order until we run out of time
+        scheduled_tasks = []
+        remaining_tasks = []
+        used_hours = 0
+        
+        for task in sorted_tasks:
+            task_hours = float(task.estimated_hours)
+            if used_hours + task_hours <= total_available_hours:
+                # This task can fit
+                remaining_tasks.append(task)
+                used_hours += task_hours
+            else:
+                # This task won't fit, skip it
+                continue
+        
+        # Schedule the selected tasks
+        if remaining_tasks:
+            scheduled_tasks, unscheduled_tasks = engine.calculate_schedule(remaining_tasks)
+            
+            # Save scheduled tasks
+            with transaction.atomic():
+                for task in scheduled_tasks:
+                    task.save()
+        
+        # Count tasks left unscheduled due to prioritization
+        skipped_tasks = len(sorted_tasks) - len(remaining_tasks)
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Priority scheduling complete! {len(scheduled_tasks)} high-priority tasks scheduled.',
+            'scheduled_count': len(scheduled_tasks),
+            'unscheduled_count': len(unscheduled_tasks) + skipped_tasks,
+            'details': f'Scheduled highest priority and most urgent tasks first. {skipped_tasks} low-priority or distant-deadline tasks remain unscheduled.'
+        })
+        
+    except Exception as e:
+        logger.error(f"Prioritize schedule error: {e}")
+        return JsonResponse({'success': False, 'error': str(e)})

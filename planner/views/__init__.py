@@ -27,6 +27,9 @@ from .scheduling_views import (
     schedule_urgent_tasks,
     create_urgent_task,
     sacrifice_tasks,
+    check_overload,
+    compress_schedule,
+    prioritize_schedule,
 )
 
 from .availability_views import (
@@ -118,6 +121,9 @@ __all__ = [
     'schedule_urgent_tasks',
     'create_urgent_task',
     'sacrifice_tasks',
+    'check_overload',
+    'compress_schedule',
+    'prioritize_schedule',
     
     # Availability views
     'AvailabilityView',

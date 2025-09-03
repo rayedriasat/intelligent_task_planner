@@ -29,6 +29,9 @@ urlpatterns = [
     path('calendar/reoptimize/', views.reoptimize_week, name='reoptimize_week'),
     path('calendar/undo-optimization/', views.undo_optimization, name='undo_optimization'),
     path('calendar/auto-schedule-all/', views.auto_schedule_all_tasks, name='auto_schedule_all_tasks'),
+    path('calendar/check-overload/', views.check_overload, name='check_overload'),
+    path('calendar/compress-schedule/', views.compress_schedule, name='compress_schedule'),
+    path('calendar/prioritize-schedule/', views.prioritize_schedule, name='prioritize_schedule'),
     
     # Manual Scheduling
     path('api/manual-schedule/', manual_schedule_task, name='manual_schedule_task'),
