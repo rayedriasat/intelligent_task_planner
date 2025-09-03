@@ -4,6 +4,30 @@
 {% if form.instance.pk %}Edit Time Block{% else %}Add Time Block{% endif %} - Task Planner
 {% endblock %}
 
+{% block extra_css %}
+<style>
+/* Fix calendar icon visibility in dark mode */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0);
+    opacity: 1;
+}
+
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 1;
+}
+
+/* Fix for Firefox */
+input[type="datetime-local"] {
+    color-scheme: light;
+}
+
+.dark input[type="datetime-local"] {
+    color-scheme: dark;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-2xl mx-auto">
     <div class="solid-card p-8">

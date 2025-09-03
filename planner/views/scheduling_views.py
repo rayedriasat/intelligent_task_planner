@@ -5,6 +5,7 @@ from django.views.decorators.http import require_POST
 from django.contrib import messages
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q
 import logging
 from datetime import datetime, timedelta
 
@@ -213,41 +214,48 @@ def reoptimize_schedule(request):
 @login_required
 @require_POST
 def auto_schedule_all_tasks(request):
-    """Automatically schedule all unscheduled tasks."""
+    """Automatically schedule all tasks with proper rearrangement for urgent tasks."""
     try:
-        engine = SchedulingEngine(request.user)
+        # Get ALL tasks that need scheduling (including already scheduled non-locked tasks)
+        # This allows for proper rearrangement when urgent tasks are added
+        all_tasks = request.user.tasks.filter(
+            status__in=['todo', 'in_progress'],
+            is_locked=False  # Don't move locked tasks
+        )
         
-        # Get all unscheduled tasks
+        # Get purely unscheduled tasks for the message
         unscheduled_tasks = request.user.tasks.filter(
             start_time__isnull=True,
             status__in=['todo', 'in_progress']
         )
         
-        if not unscheduled_tasks.exists():
+        if not all_tasks.exists():
             return JsonResponse({
                 'success': True,
-                'message': 'No unscheduled tasks to schedule',
+                'message': 'No tasks to schedule',
                 'scheduled_count': 0
             })
         
-        # Use the scheduling engine to schedule all tasks
-        result = engine.calculate_schedule_with_analysis()
+        # Clear existing schedule for non-locked tasks to allow proper rearrangement
+        # Use the built-in reschedule_week method which handles this properly
+        engine = SchedulingEngine(request.user)
+        scheduled_tasks, unscheduled_tasks = engine.reschedule_week()
         
-        scheduled_count = len(result['scheduled_tasks'])
-        unscheduled_count = len(result['unscheduled_tasks'])
+        scheduled_count = len(scheduled_tasks)
+        final_unscheduled_count = len(unscheduled_tasks)
         
         # Save scheduled tasks to database
         with transaction.atomic():
-            for task in result['scheduled_tasks']:
+            for task in scheduled_tasks:
                 task.save()
         
         return JsonResponse({
             'success': True,
-            'message': f'Scheduled {scheduled_count} tasks automatically',
+            'message': f'Re-arranged schedule: {scheduled_count} tasks scheduled with proper priority order',
             'scheduled_count': scheduled_count,
-            'unscheduled_count': unscheduled_count,
-            'utilization_rate': result.get('utilization_rate', 0),
-            'recommendations': result.get('overload_analysis', {}).get('recommendations', [])
+            'unscheduled_count': final_unscheduled_count,
+            'utilization_rate': 0,  # TODO: Calculate utilization if needed
+            'recommendations': []  # TODO: Add recommendations if needed
         })
         
     except Exception as e:
@@ -275,9 +283,23 @@ def quick_schedule_task(request):
             scheduled_task = scheduled_tasks[0]
             scheduled_task.save()
             
+            # Ensure we're working with the user's timezone
+            local_time = scheduled_task.start_time
+            if hasattr(local_time, 'astimezone'):
+                # Convert to local timezone if it's timezone-aware
+                from django.utils import timezone as tz
+                local_time = local_time.astimezone(tz.get_current_timezone())
+            
+            # Use the same time format as calendar blocks: "g:i A" (e.g., "1:11 PM")
+            # Django's "g:i A" format: hour without leading zero, minutes with leading zero, AM/PM
+            hour = local_time.strftime('%I').lstrip('0')  # Remove leading zero from hour
+            minute = local_time.strftime('%M')             # Keep leading zero for minutes
+            ampm = local_time.strftime('%p')               # AM/PM
+            formatted_time = f"{hour}:{minute} {ampm}"
+            
             return JsonResponse({
                 'success': True,
-                'scheduled_time': scheduled_task.start_time.strftime('%b %d at %I:%M %p'),
+                'scheduled_time': formatted_time,
                 'task_title': scheduled_task.title
             })
         else:
@@ -295,14 +317,14 @@ def quick_schedule_task(request):
 def schedule_urgent_tasks(request):
     """Schedule all urgent tasks automatically."""
     try:
-        # Get urgent tasks (due within 2 days)
-        urgent_deadline = timezone.now() + timedelta(days=2)
+        # Get urgent tasks (due within 24 hours or priority 4)
+        urgent_deadline = timezone.now() + timedelta(hours=24)
         
         urgent_tasks = list(request.user.tasks.filter(
-            deadline__lte=urgent_deadline,
+            Q(deadline__lte=urgent_deadline, deadline__gt=timezone.now()) | Q(priority=4),
             start_time__isnull=True,
             status__in=['todo', 'in_progress']
-        ).order_by('deadline', 'priority'))
+        ).order_by('deadline', '-priority'))  # Sort by deadline first, then by priority (urgent first)
         
         if not urgent_tasks:
             return JsonResponse({
@@ -312,7 +334,7 @@ def schedule_urgent_tasks(request):
             })
         
         engine = SchedulingEngine(request.user)
-        scheduled_tasks, unscheduled_tasks = engine.calculate_schedule(urgent_tasks)
+        scheduled_tasks, unscheduled_tasks = engine.schedule_urgent_tasks(urgent_tasks)
         
         # Save scheduled tasks
         with transaction.atomic():
@@ -346,26 +368,21 @@ def create_urgent_task(request):
             
             # Check if there's available time for this task
             engine = SchedulingEngine(request.user)
-            available_slots = engine._generate_available_slots(list(request.user.time_blocks.all()))
             
-            # Calculate total available time
-            total_available = sum(engine._slot_duration(slot) for slot in available_slots)
-            required_time = float(task.estimated_hours)
+            # Try to schedule using the consistent scheduling method
+            scheduled_tasks, unscheduled_tasks = engine.calculate_schedule([task])
             
-            if total_available >= required_time:
-                # Try to schedule normally
-                scheduled_slot = engine._find_suitable_slot(task, available_slots)
-                if scheduled_slot:
-                    task.start_time = scheduled_slot['start']
-                    task.end_time = scheduled_slot['end']
-                    task.save()
-                    
-                    return JsonResponse({
-                        'success': True,
-                        'message': 'Urgent task scheduled successfully',
-                        'task_id': task.id,
-                        'scheduled': True
-                    })
+            if scheduled_tasks:
+                # Task was successfully scheduled
+                scheduled_task = scheduled_tasks[0]
+                scheduled_task.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Urgent task scheduled successfully',
+                    'task_id': task.id,
+                    'scheduled': True
+                })
             
             # No available time - trigger sacrifice mode
             conflicting_tasks = request.user.tasks.filter(

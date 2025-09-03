@@ -60,6 +60,26 @@ class Task(models.Model):
         return self.start_time is not None and self.end_time is not None
     
     @property
+    def is_urgent_by_deadline(self):
+        """Check if task is urgent based on 24-hour deadline rule."""
+        if not self.deadline:
+            return False
+        time_until_deadline = self.deadline - timezone.now()
+        return time_until_deadline <= timedelta(hours=24)
+    
+    @property
+    def is_urgent(self):
+        """Check if task is urgent (either by deadline or priority)."""
+        return self.priority == 4 or self.is_urgent_by_deadline
+    
+    @property
+    def effective_priority(self):
+        """Get the effective priority, considering both manual priority and deadline urgency."""
+        if self.is_urgent_by_deadline:
+            return 4  # Urgent
+        return self.priority
+    
+    @property
     def calendar_top_position(self):
         """Calculate top position in pixels for calendar display."""
         if not self.start_time:

@@ -47,16 +47,18 @@ class TaskForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Set priority choices
+        # Set priority choices - Remove urgent option as it's auto-determined
         self.fields['priority'].choices = [
             (1, 'Low'),
             (2, 'Medium'),
             (3, 'High'),
-            (4, 'Urgent'),
         ]
         
         # Make description optional
         self.fields['description'].required = False
+        
+        # Make priority not required since it can be auto-set based on deadline
+        self.fields['priority'].required = False
         
         # Add helpful help text
         self.fields['estimated_hours'].help_text = "How many hours do you think this task will take? (e.g., 2.5 for 2.5 hours)"
@@ -87,6 +89,36 @@ class TaskForm(forms.ModelForm):
                 
         return min_block_size
 
+    def clean_priority(self):
+        priority = self.cleaned_data.get('priority')
+        deadline = self.cleaned_data.get('deadline')
+        
+        # If priority is not provided, set a default
+        if priority is None:
+            # Check if task should be urgent based on deadline
+            if deadline:
+                time_until_deadline = deadline - timezone.now()
+                if time_until_deadline <= timedelta(hours=24) and time_until_deadline > timedelta(0):
+                    return 4  # Urgent
+            return 2  # Default to medium
+        
+        return priority
+
+    def clean(self):
+        cleaned_data = super().clean()
+        deadline = cleaned_data.get('deadline')
+        priority = cleaned_data.get('priority')
+        
+        # Auto-set priority based on deadline if not already set
+        if deadline:
+            time_until_deadline = deadline - timezone.now()
+            if time_until_deadline <= timedelta(hours=24) and time_until_deadline > timedelta(0):
+                cleaned_data['priority'] = 4  # Force urgent
+        elif priority is None:
+            cleaned_data['priority'] = 2  # Default to medium
+            
+        return cleaned_data
+
 
 class QuickTaskForm(forms.ModelForm):
     """Simplified form for quick task creation during onboarding"""
@@ -104,8 +136,9 @@ class QuickTaskForm(forms.ModelForm):
             }),
             'estimated_hours': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
-                'step': '0.5',
-                'min': '0.1',
+                'step': '0.1',  # Allow 0.1 hour increments (6 minutes)
+                'min': '0.1',   # Minimum 6 minutes
+                'max': '24',    # Maximum 24 hours
                 'placeholder': '2.0'
             }),
         }
@@ -115,6 +148,15 @@ class QuickTaskForm(forms.ModelForm):
         # Set default deadline to tomorrow
         tomorrow = timezone.now() + timedelta(days=1)
         self.fields['deadline'].initial = tomorrow.strftime('%Y-%m-%dT%H:%M')
+
+    def clean_estimated_hours(self):
+        estimated_hours = self.cleaned_data.get('estimated_hours')
+        if estimated_hours is not None:
+            if estimated_hours < 0.1:
+                raise forms.ValidationError("Estimated hours must be at least 6 minutes (0.1 hours).")
+            if estimated_hours > 24:
+                raise forms.ValidationError("Estimated hours cannot exceed 24 hours.")
+        return estimated_hours
 
 
 class TimeBlockForm(forms.ModelForm):

@@ -4,6 +4,30 @@
 {% if form.instance.pk %}Edit Task{% else %}Create Task{% endif %} - Task Planner
 {% endblock %}
 
+{% block extra_css %}
+<style>
+/* Fix calendar icon visibility in dark mode */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0);
+    opacity: 1;
+}
+
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 1;
+}
+
+/* Fix for Firefox */
+input[type="datetime-local"] {
+    color-scheme: light;
+}
+
+.dark input[type="datetime-local"] {
+    color-scheme: dark;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-2xl mx-auto">
     <div class="solid-card p-8">
@@ -96,7 +120,12 @@
                     <label for="{{ form.priority.id_for_label }}" class="block text-sm font-medium mb-2">
                         Priority *
                     </label>
-                    {{ form.priority }}
+                    <div class="relative">
+                        {{ form.priority }}
+                        <div id="urgent-overlay" class="absolute inset-0 bg-orange-100 dark:bg-orange-900/30 border border-orange-300 dark:border-orange-700 rounded-lg items-center justify-center text-orange-800 dark:text-orange-200 font-medium hidden">
+                            URGENT (Due within 24h)
+                        </div>
+                    </div>
                     {% if form.priority.errors %}
                         <div class="text-red-500 text-sm mt-1">
                             {% for error in form.priority.errors %}
@@ -225,4 +254,42 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const deadlineInput = document.getElementById('{{ form.deadline.id_for_label }}');
+    const prioritySelect = document.getElementById('{{ form.priority.id_for_label }}');
+    const urgentOverlay = document.getElementById('urgent-overlay');
+    
+    function checkUrgency() {
+        if (!deadlineInput.value) return;
+        
+        const deadlineDate = new Date(deadlineInput.value);
+        const now = new Date();
+        const timeDiff = deadlineDate - now;
+        const hoursDiff = timeDiff / (1000 * 60 * 60); // Convert to hours
+        
+        if (hoursDiff <= 24 && hoursDiff > 0) {
+            // Task is urgent - show overlay and disable priority selection
+            urgentOverlay.style.display = 'flex';
+            prioritySelect.disabled = true;
+            prioritySelect.style.opacity = '0.5';
+            // Set a value to avoid validation issues
+            prioritySelect.value = '3'; // Set to high (available option)
+        } else {
+            // Task is not urgent - hide overlay and enable priority selection
+            urgentOverlay.style.display = 'none';
+            prioritySelect.disabled = false;
+            prioritySelect.style.opacity = '1';
+        }
+    }
+    
+    // Check urgency when deadline changes
+    deadlineInput.addEventListener('change', checkUrgency);
+    deadlineInput.addEventListener('input', checkUrgency);
+    
+    // Check urgency on page load
+    checkUrgency();
+});
+</script>
 {% endblock %}

@@ -2,6 +2,30 @@
 
 {% block title %}Quick Start - Task Planner{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Fix calendar icon visibility in dark mode */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0);
+    opacity: 1;
+}
+
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 1;
+}
+
+/* Fix for Firefox */
+input[type="datetime-local"] {
+    color-scheme: light;
+}
+
+.dark input[type="datetime-local"] {
+    color-scheme: dark;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-2xl mx-auto">
     <div class="glass-card p-12 text-center">
@@ -27,7 +51,9 @@
                 <label for="{{ form.deadline.id_for_label }}" class="block text-sm font-medium mb-2">
                     When is it due?
                 </label>
-                {{ form.deadline }}
+                <div class="relative">
+                    {{ form.deadline }}
+                </div>
                 {% if form.deadline.errors %}
                     <div class="text-red-500 text-sm mt-1">{{ form.deadline.errors.0 }}</div>
                 {% endif %}

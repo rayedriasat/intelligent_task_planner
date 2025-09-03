@@ -13,10 +13,22 @@ class SchedulingEngine:
     def __init__(self, user):
         self.user = user
 
+    def schedule_urgent_tasks(self, urgent_tasks: List[Task]) -> Tuple[List[Task], List[Task]]:
+        """
+        Schedule urgent tasks with deadline constraints.
+        Now uses the consistent calculate_schedule method for better reliability.
+        """
+        if not urgent_tasks:
+            return [], []
+        
+        # Use the main calculate_schedule method which now handles urgency properly
+        return self.calculate_schedule(tasks=urgent_tasks)
+
     def calculate_schedule(self, tasks: List[Task] = None, time_blocks: List[TimeBlock] = None) -> Tuple[List[Task], List[Task]]:
         """
         Main scheduling function that takes tasks and time blocks,
         returns scheduled and unscheduled tasks.
+        NOW SUPPORTS URGENCY AND DEADLINE CONSTRAINTS FOR CONSISTENCY.
         """
         if tasks is None:
             tasks = list(self.user.tasks.filter(status__in=['todo', 'in_progress'], is_locked=False))
@@ -27,11 +39,28 @@ class SchedulingEngine:
         # Create available time slots from time blocks
         available_slots = self._generate_available_slots(time_blocks)
         
-        # Sort tasks by enhanced priority algorithm
-        tasks_to_schedule = sorted(
-            tasks,
-            key=lambda t: self._calculate_task_priority_score(t)
-        )
+        # Separate urgent and regular tasks for proper prioritization
+        now = timezone.now()
+        urgent_deadline = now + timedelta(hours=24)
+        
+        urgent_tasks = []
+        regular_tasks = []
+        
+        for task in tasks:
+            if (task.deadline and task.deadline <= urgent_deadline and task.deadline > now) or task.priority == 4:
+                urgent_tasks.append(task)
+            else:
+                regular_tasks.append(task)
+        
+        # Sort urgent tasks by deadline (most urgent first), then regular tasks by priority
+        urgent_tasks_sorted = sorted(urgent_tasks, key=lambda t: (t.deadline or now + timedelta(days=365), -t.priority))
+        
+        # For regular tasks, sort by priority (1=low, 2=medium, 3=high, 4=urgent already filtered out)
+        # Higher priority numbers should be scheduled first: 3 (high) → 2 (medium) → 1 (low)
+        regular_tasks_sorted = sorted(regular_tasks, key=lambda t: -t.priority)
+        
+        # Combine with urgent tasks first
+        tasks_to_schedule = urgent_tasks_sorted + regular_tasks_sorted
 
         scheduled_tasks = []
         unscheduled_tasks = []
@@ -44,15 +73,21 @@ class SchedulingEngine:
             # Handle overload scenario
             return self._handle_overload(tasks_to_schedule, available_slots)
 
-        # Schedule tasks
-        for task in tasks_to_schedule:
-            scheduled_slot = self._find_suitable_slot(task, available_slots)
+        # Schedule tasks with deadline awareness
+        latest_end_time = now  # Track the latest end time for sequential scheduling
+        
+        for i, task in enumerate(tasks_to_schedule):
+            # Find a slot that starts after the latest scheduled end time
+            scheduled_slot = self._find_suitable_slot_sequential(task, available_slots, latest_end_time)
             
             if scheduled_slot:
                 # Schedule the task
                 task.start_time = scheduled_slot['start']
                 task.end_time = scheduled_slot['end']
                 scheduled_tasks.append(task)
+                
+                # Update the latest end time for the next task
+                latest_end_time = scheduled_slot['end']
                 
                 # Remove or split the used slot
                 available_slots = self._update_available_slots(available_slots, scheduled_slot)
@@ -61,46 +96,108 @@ class SchedulingEngine:
 
         return scheduled_tasks, unscheduled_tasks
 
-    def _generate_available_slots(self, time_blocks: List[TimeBlock]) -> List[dict]:
-        """Generate available time slots from time blocks for the current week."""
+    def _generate_available_slots(self, time_blocks: List[TimeBlock], end_date=None) -> List[dict]:
+        """Generate available time slots from time blocks with calendar view constraints (6 AM - 12 AM)."""
         now = timezone.now()
-        week_start = now.date() - timedelta(days=now.weekday())  # Monday of current week
-        week_end = week_start + timedelta(days=6)  # Sunday of current week
+        
+        # If no end_date specified, default to one week from now
+        if end_date is None:
+            end_date = (now + timedelta(days=7)).date()
+        
+        # Start from today, not the Monday of current week
+        start_date = now.date()
+        
+        # Calendar view constraints: 6 AM to Midnight (next day 00:00)
+        CALENDAR_START_HOUR = 6  # 6 AM
         
         slots = []
         
         for block in time_blocks:
             if block.is_recurring:
-                # Generate slots for the week based on day_of_week
-                if block.day_of_week is not None:
-                    slot_date = week_start + timedelta(days=block.day_of_week)
-                    slot_start = timezone.make_aware(datetime.combine(
-                        slot_date,
-                        block.start_time.time()
+                # Generate slots for each day from start_date to end_date
+                current_date = start_date
+                while current_date <= end_date:
+                    if block.day_of_week == current_date.weekday():
+                        slot_start = timezone.make_aware(datetime.combine(
+                            current_date,
+                            block.start_time.time()
+                        ))
+                        slot_end = timezone.make_aware(datetime.combine(
+                            current_date,
+                            block.end_time.time()
+                        ))
+                        
+                        # Apply calendar view constraints (6 AM - 12 AM)
+                        day_calendar_start = timezone.make_aware(datetime.combine(
+                            current_date, 
+                            datetime.min.time().replace(hour=CALENDAR_START_HOUR)
+                        ))
+                        # For end time, use next day at midnight (hour 0)
+                        next_day = current_date + timedelta(days=1)
+                        day_calendar_end = timezone.make_aware(datetime.combine(
+                            next_day, 
+                            datetime.min.time()  # This is midnight (00:00) of next day
+                        ))
+                        
+                        # Constrain slot to calendar view hours
+                        constrained_start = max(slot_start, day_calendar_start)
+                        constrained_end = min(slot_end, day_calendar_end)
+                        
+                        if constrained_end > constrained_start and constrained_end > now:
+                            # Add the slot with its original time - we'll handle current time later
+                            slots.append({
+                                'start': constrained_start,
+                                'end': constrained_end,
+                                'block_id': block.id
+                            })
+                    current_date += timedelta(days=1)
+            else:
+                # Single occurrence - check if it ends in the future and within our date range
+                if (block.end_time > now and 
+                    start_date <= block.start_time.date() <= end_date):
+                    
+                    # Apply calendar view constraints for single occurrences too
+                    block_date = block.start_time.date()
+                    day_calendar_start = timezone.make_aware(datetime.combine(
+                        block_date, 
+                        datetime.min.time().replace(hour=CALENDAR_START_HOUR)
                     ))
-                    slot_end = timezone.make_aware(datetime.combine(
-                        slot_date,
-                        block.end_time.time()
+                    # For end time, use next day at midnight (hour 0)
+                    next_day = block_date + timedelta(days=1)
+                    day_calendar_end = timezone.make_aware(datetime.combine(
+                        next_day, 
+                        datetime.min.time()  # This is midnight (00:00) of next day
                     ))
                     
-                    if slot_end > now:  # Only if the slot ends in the future
-                        # If the slot starts in the past, adjust start time to now
-                        actual_start = max(slot_start, now)
+                    # Constrain to calendar view
+                    constrained_start = max(block.start_time, day_calendar_start)
+                    constrained_end = min(block.end_time, day_calendar_end)
+                    
+                    if constrained_end > constrained_start:
+                        # Add the slot with its original time - we'll handle current time later
                         slots.append({
-                            'start': actual_start,
-                            'end': slot_end,
+                            'start': constrained_start,
+                            'end': constrained_end,
                             'block_id': block.id
                         })
-            else:
-                # Single occurrence - check if it ends in the future
-                if block.end_time > now:
-                    # If the block starts in the past, adjust the start time to now
-                    actual_start = max(block.start_time, now)
-                    slots.append({
-                        'start': actual_start,
-                        'end': block.end_time,
-                        'block_id': block.id
-                    })
+
+        # Adjust slots that start in the past to start at current time
+        now = timezone.now()
+        adjusted_slots = []
+        for slot in slots:
+            if slot['start'] < now < slot['end']:
+                # Current time is within this slot - adjust start to current time
+                adjusted_slots.append({
+                    'start': now,
+                    'end': slot['end'],
+                    'block_id': slot['block_id']
+                })
+            elif slot['end'] > now:
+                # Slot is completely in the future - keep as is
+                adjusted_slots.append(slot)
+            # Skip slots that are completely in the past
+        
+        slots = adjusted_slots
 
         # Remove conflicts with existing scheduled tasks
         scheduled_tasks = self.user.tasks.filter(
@@ -109,38 +206,127 @@ class SchedulingEngine:
             status__in=['todo', 'in_progress']
         )
         
+        # Remove conflicts with ALL scheduled tasks, not just locked ones
         for task in scheduled_tasks:
-            if task.is_locked:
-                slots = self._remove_conflicts(slots, task.start_time, task.end_time)
+            slots = self._remove_conflicts(slots, task.start_time, task.end_time)
 
         return sorted(slots, key=lambda x: x['start'])
 
     def _find_suitable_slot(self, task: Task, available_slots: List[dict]) -> Optional[dict]:
-        """Find a suitable time slot for the given task."""
+        """Find a suitable time slot for the given task that respects the deadline."""
         
         # Convert Decimal to float for timedelta
         required_duration = timedelta(hours=float(task.estimated_hours))
         min_duration = timedelta(hours=float(task.min_block_size))
         
-        for slot in available_slots:
+        # Task deadline constraint - task must be completed BEFORE the deadline
+        task_deadline = task.deadline
+        
+        # Sort slots by date first, then by time
+        # But prefer slots that can fit after already scheduled tasks on the same day
+        def sort_key(slot):
+            # Get date and time
+            slot_date = slot['start'].date()
+            slot_time = slot['start'].time()
+            
+            # For sequential scheduling, we want to prioritize slots that start after the current time
+            # within the same day first, then move to the next day
+            return (slot_date, slot_time)
+        
+        sorted_slots = sorted(available_slots, key=sort_key)
+        
+        for slot in sorted_slots:
             slot_duration = slot['end'] - slot['start']
             
-            # Check if slot is big enough for minimum block size
-            if slot_duration >= min_duration:
-                # Check if we can fit the full task
-                if slot_duration >= required_duration:
-                    # Schedule for the full duration
+            # CRITICAL: Check if the slot can complete BEFORE the deadline
+            if task_deadline and slot['start'] >= task_deadline:
+                # Slot starts after deadline - skip this slot
+                continue
+            
+            # Check if we have enough time to complete before deadline
+            if task_deadline:
+                latest_end_time = min(slot['end'], task_deadline)
+            else:
+                latest_end_time = slot['end']
+                
+            available_time_before_deadline = latest_end_time - slot['start']
+            
+            # Check if slot is big enough for minimum block size and fits before deadline
+            if available_time_before_deadline >= min_duration:
+                # Check if we can fit the full task before deadline
+                if available_time_before_deadline >= required_duration:
+                    # Schedule for the full duration, ending before deadline
                     return {
                         'start': slot['start'],
                         'end': slot['start'] + required_duration,
                         'block_id': slot['block_id']
                     }
                 else:
-                    # Can fit minimum block but not full task
-                    # Schedule what we can fit
+                    # Can fit minimum block but not full task, schedule what fits before deadline
                     return {
                         'start': slot['start'],
-                        'end': slot['end'],
+                        'end': latest_end_time,
+                        'block_id': slot['block_id']
+                    }
+        
+        return None
+
+    def _find_suitable_slot_sequential(self, task: Task, available_slots: List[dict], earliest_start_time: datetime) -> Optional[dict]:
+        """Find a suitable time slot for sequential scheduling that starts after the given time."""
+        
+        # Convert Decimal to float for timedelta
+        required_duration = timedelta(hours=float(task.estimated_hours))
+        min_duration = timedelta(hours=float(task.min_block_size))
+        
+        # Task deadline constraint - task must be completed BEFORE the deadline
+        task_deadline = task.deadline
+        
+        # Sort slots by date first, then by time
+        def sort_key(slot):
+            slot_date = slot['start'].date()
+            slot_time = slot['start'].time()
+            return (slot_date, slot_time)
+        
+        sorted_slots = sorted(available_slots, key=sort_key)
+        
+        for slot in sorted_slots:
+            # The slot must start at or after the earliest_start_time
+            effective_start = max(slot['start'], earliest_start_time)
+            
+            # Check if the effective start time is still within the slot
+            if effective_start >= slot['end']:
+                continue  # This slot is too early, skip it
+            
+            slot_duration = slot['end'] - effective_start
+            
+            # CRITICAL: Check if the slot can complete BEFORE the deadline
+            if task_deadline and effective_start >= task_deadline:
+                # Slot starts after deadline - skip this slot
+                continue
+            
+            # Check if we have enough time to complete before deadline
+            if task_deadline:
+                latest_end_time = min(slot['end'], task_deadline)
+            else:
+                latest_end_time = slot['end']
+                
+            available_time_before_deadline = latest_end_time - effective_start
+            
+            # Check if slot is big enough for minimum block size and fits before deadline
+            if available_time_before_deadline >= min_duration:
+                # Check if we can fit the full task before deadline
+                if available_time_before_deadline >= required_duration:
+                    # Schedule for the full duration, ending before deadline
+                    return {
+                        'start': effective_start,
+                        'end': effective_start + required_duration,
+                        'block_id': slot['block_id']
+                    }
+                else:
+                    # Can fit minimum block but not full task, schedule what fits before deadline
+                    return {
+                        'start': effective_start,
+                        'end': latest_end_time,
                         'block_id': slot['block_id']
                     }
         
@@ -151,25 +337,30 @@ class SchedulingEngine:
         updated_slots = []
         
         for slot in slots:
-            if slot['block_id'] == used_slot['block_id']:
-                # This is the slot we used
+            # Check if this slot overlaps with the used slot
+            if (slot['start'] < used_slot['end'] and slot['end'] > used_slot['start'] and 
+                slot['block_id'] == used_slot['block_id']):
+                # This slot overlaps with the used slot - split it
+                
                 if slot['start'] < used_slot['start']:
                     # There's time before the used slot
-                    updated_slots.append({
+                    before_slot = {
                         'start': slot['start'],
                         'end': used_slot['start'],
                         'block_id': slot['block_id']
-                    })
+                    }
+                    updated_slots.append(before_slot)
                 
                 if used_slot['end'] < slot['end']:
                     # There's time after the used slot
-                    updated_slots.append({
+                    after_slot = {
                         'start': used_slot['end'],
                         'end': slot['end'],
                         'block_id': slot['block_id']
-                    })
+                    }
+                    updated_slots.append(after_slot)
             else:
-                # Keep other slots as is
+                # Keep other slots as is (no overlap or different block)
                 updated_slots.append(slot)
         
         return updated_slots
@@ -254,8 +445,12 @@ class SchedulingEngine:
         now = timezone.now()
         
         # Calculate deadline urgency (days until deadline)
-        time_until_deadline = (task.deadline - now).total_seconds() / (24 * 3600)  # days
-        urgency_score = max(0, time_until_deadline)  # Closer deadlines = lower score
+        if task.deadline:
+            time_until_deadline = (task.deadline - now).total_seconds() / (24 * 3600)  # days
+            urgency_score = max(0, time_until_deadline)  # Closer deadlines = lower score
+        else:
+            # No deadline = low urgency (higher score, scheduled later)
+            urgency_score = 999999  # Very high score = low priority
         
         # Priority score (1=high priority, 4=low priority, so lower is better)
         priority_score = task.priority
@@ -385,11 +580,25 @@ class SchedulingEngine:
         # Analyze overload before scheduling
         overload_analysis = self._detect_overload_with_analysis(tasks, available_slots)
         
-        # Sort tasks by enhanced priority algorithm
-        tasks_to_schedule = sorted(
-            tasks,
-            key=lambda t: self._calculate_task_priority_score(t)
-        )
+        # Separate urgent and regular tasks for proper prioritization (consistent with calculate_schedule)
+        now = timezone.now()
+        urgent_deadline = now + timedelta(hours=24)
+        
+        urgent_tasks = []
+        regular_tasks = []
+        
+        for task in tasks:
+            if (task.deadline and task.deadline <= urgent_deadline and task.deadline > now) or task.priority == 4:
+                urgent_tasks.append(task)
+            else:
+                regular_tasks.append(task)
+        
+        # Sort urgent tasks by deadline (most urgent first), then regular tasks by priority
+        urgent_tasks_sorted = sorted(urgent_tasks, key=lambda t: (t.deadline or now + timedelta(days=365), -t.priority))
+        regular_tasks_sorted = sorted(regular_tasks, key=lambda t: self._calculate_task_priority_score(t))
+        
+        # Combine with urgent tasks first (consistent with calculate_schedule)
+        tasks_to_schedule = urgent_tasks_sorted + regular_tasks_sorted
 
         scheduled_tasks = []
         unscheduled_tasks = []

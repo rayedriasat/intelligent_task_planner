@@ -3,7 +3,12 @@
      id="task-{{ task.id }}">
     
     <div class="flex justify-between items-start mb-2">
-        <h3 class="font-medium text-sm">{{ task.title }}</h3>
+        <div class="flex-1">
+            <h3 class="font-medium text-sm">{{ task.title }}</h3>
+            {% if task.is_urgent %}
+                <span class="inline-block text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200 px-1 py-0.5 rounded mt-1">URGENT</span>
+            {% endif %}
+        </div>
         <div class="flex items-center space-x-1">
             <!-- Priority Indicator -->
             <div class="priority-indicator priority-{% if task.priority == 1 %}low{% elif task.priority == 2 %}medium{% elif task.priority == 3 %}high{% else %}urgent{% endif %}"></div>

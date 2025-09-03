@@ -3,6 +3,30 @@
 
 {% block title %}Calendar - TaskFlow{% endblock %}
 
+{% block extra_css %}
+<style>
+/* Fix calendar icon visibility in dark mode */
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(0);
+    opacity: 1;
+}
+
+.dark input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 1;
+}
+
+/* Fix for Firefox */
+input[type="datetime-local"] {
+    color-scheme: light;
+}
+
+.dark input[type="datetime-local"] {
+    color-scheme: dark;
+}
+</style>
+{% endblock %}
+
 {% block content %}
 {% csrf_token %}
 <!-- Ensure CSRF token is available for JavaScript -->
@@ -1149,7 +1173,8 @@ function calendarApp() {
                     priority: {{ task.priority }},
                     deadline: "{{ task.deadline|date:'Y-m-d' }}",
                     created_at: "{{ task.created_at|date:'Y-m-d' }}",
-                    is_urgent: {% if task.deadline and task.deadline|timeuntil|cut:' ' < '2 days' %}true{% else %}false{% endif %}
+                    deadline_iso: "{{ task.deadline|date:'c' }}",
+                    is_urgent: {{ task.is_urgent|yesno:"true,false" }}
                 },
                 {% empty %}
                 // NO TASKS FOUND IN TEMPLATE
@@ -1577,7 +1602,6 @@ function calendarApp() {
         },
         
         showToast(message, type = 'info') {
-            console.log(`SYNC DEBUG: Calendar showToast called with message: "${message}", type: ${type}`);
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             

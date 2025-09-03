@@ -36,6 +36,17 @@ class OnboardingView(LoginRequiredMixin, TemplateView):
         if form.is_valid():
             task = form.save(commit=False)
             task.user = request.user
+            
+            # Check if task should be marked as urgent based on deadline
+            if task.deadline:
+                time_until_deadline = task.deadline - timezone.now()
+                if time_until_deadline <= timedelta(hours=24) and time_until_deadline > timedelta(0):
+                    task.priority = 4  # Set to urgent
+                else:
+                    task.priority = 2  # Default to medium
+            else:
+                task.priority = 2  # Default to medium
+            
             task.save()
 
             # Create default availability for new users
@@ -48,9 +59,15 @@ class OnboardingView(LoginRequiredMixin, TemplateView):
             if scheduled_tasks:
                 for scheduled_task in scheduled_tasks:
                     scheduled_task.save()
-                messages.success(request, f'Great! Your task "{task.title}" has been scheduled. Add more availability to build a complete schedule.')
+                if task.priority == 4:
+                    messages.success(request, f'Great! Your URGENT task "{task.title}" has been scheduled. Add more availability to build a complete schedule.')
+                else:
+                    messages.success(request, f'Great! Your task "{task.title}" has been scheduled. Add more availability to build a complete schedule.')
             else:
-                messages.warning(request, f'Task "{task.title}" was created but couldn\'t be scheduled. Please add your availability.')
+                if task.priority == 4:
+                    messages.warning(request, f'URGENT task "{task.title}" was created but couldn\'t be scheduled. Please add your availability.')
+                else:
+                    messages.warning(request, f'Task "{task.title}" was created but couldn\'t be scheduled. Please add your availability.')
 
             return redirect('planner:dashboard')
 
@@ -92,10 +109,10 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         in_progress_tasks_count = user_tasks.filter(status='in_progress').count()
         todo_tasks_count = user_tasks.filter(status='todo').count()
         
-        # Calculate urgent tasks (due within 2 days)
-        urgent_deadline = timezone.now() + timedelta(days=2)
+        # Calculate urgent tasks (due within 24 hours or marked as urgent priority)
+        urgent_deadline = timezone.now() + timedelta(hours=24)
         urgent_tasks_count = user_tasks.filter(
-            deadline__lte=urgent_deadline,
+            Q(deadline__lte=urgent_deadline, deadline__gt=timezone.now()) | Q(priority=4),
             status__in=['todo', 'in_progress']
         ).count()
         
@@ -164,10 +181,20 @@ class TaskCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         form.instance.user = self.request.user
+        
+        # Check if task should be marked as urgent based on deadline
+        if form.instance.deadline:
+            time_until_deadline = form.instance.deadline - timezone.now()
+            if time_until_deadline <= timedelta(hours=24) and time_until_deadline > timedelta(0):
+                form.instance.priority = 4  # Set to urgent
+        
         response = super().form_valid(form)
         
         # Don't automatically schedule - let users manually schedule or use re-optimize
-        messages.success(self.request, f'Task "{self.object.title}" created! Drag it to a time slot or use Re-optimize to schedule it.')
+        if form.instance.priority == 4:
+            messages.success(self.request, f'Task "{self.object.title}" created as URGENT (due within 24h)! Drag it to a time slot or use Re-optimize to schedule it.')
+        else:
+            messages.success(self.request, f'Task "{self.object.title}" created! Drag it to a time slot or use Re-optimize to schedule it.')
         
         return response
 
@@ -189,6 +216,22 @@ class TaskUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_queryset(self):
         return Task.objects.filter(user=self.request.user)
+
+    def form_valid(self, form):
+        # Check if task should be marked as urgent based on deadline
+        if form.instance.deadline:
+            time_until_deadline = form.instance.deadline - timezone.now()
+            if time_until_deadline <= timedelta(hours=24) and time_until_deadline > timedelta(0):
+                form.instance.priority = 4  # Set to urgent
+        
+        response = super().form_valid(form)
+        
+        if form.instance.priority == 4:
+            messages.success(self.request, f'Task "{self.object.title}" updated as URGENT (due within 24h)!')
+        else:
+            messages.success(self.request, f'Task "{self.object.title}" updated successfully!')
+        
+        return response
 
     def get_success_url(self):
         return reverse('planner:task_detail', kwargs={'pk': self.object.pk})
