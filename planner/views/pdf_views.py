@@ -236,7 +236,7 @@ class SchedulePdfGenerateView(LoginRequiredMixin, View):
             story.append(Spacer(1, 20))
             
             # Create table for unscheduled tasks
-            table_data = [['Task', 'Deadline', 'Estimated Hours', 'Priority']]
+            table_data = [['Task', 'Deadline', 'Estimated', 'Priority']]
             
             for task in unscheduled_tasks:
                 deadline_str = task.deadline.strftime('%m/%d/%Y %I:%M %p') if task.deadline else "No deadline"
