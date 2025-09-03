@@ -11,6 +11,8 @@ from .task_views import (
     TaskUpdateView,
     TaskDeleteView,
     ProfileView,
+    bulk_delete_tasks,
+    delete_completed_tasks,
 )
 
 from .calendar_views import (
@@ -108,6 +110,8 @@ __all__ = [
     'TaskUpdateView',
     'TaskDeleteView',
     'ProfileView',
+    'bulk_delete_tasks',
+    'delete_completed_tasks',
     
     # Calendar views
     'CalendarView',

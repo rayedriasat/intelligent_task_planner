@@ -65,17 +65,6 @@
                 <span x-text="aiLoading ? 'Getting AI Suggestions...' : 'Get AI Suggestion'"></span>
             </button>
             
-
-            
-            <!-- Add Urgent Task Button -->
-            <button @click="promptUrgentTask()" 
-                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                </svg>
-                <span>Urgent Task</span>
-            </button>
-            
             <!-- Export PDF Button -->
             <a href="{% url 'planner:schedule_pdf_form' %}" 
                class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2">
@@ -1926,26 +1915,6 @@ function calendarApp() {
                 console.error('Error:', error);
                 this.showToast('Network error', 'error');
             });
-        },
-        
-        promptUrgentTask() {
-            console.log('DEBUG: promptUrgentTask() called');
-            const title = prompt('Enter urgent task title:');
-            if (!title) return;
-            
-            const hours = prompt('Estimated hours:', '1');
-            if (!hours || isNaN(hours)) {
-                this.showToast('Invalid hours entered', 'error');
-                return;
-            }
-            
-            const deadline = prompt('Deadline (YYYY-MM-DD):');
-            if (!deadline) {
-                this.showToast('Deadline is required', 'error');
-                return;
-            }
-            
-            this.createUrgentTask(title, parseFloat(hours), deadline);
         },
         
         // AI Suggestions Functions

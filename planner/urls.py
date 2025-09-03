@@ -20,6 +20,10 @@ urlpatterns = [
     path('tasks/<int:pk>/toggle-status/', views.toggle_task_status, name='toggle_task_status'),
     path('tasks/<int:pk>/lock/', views.toggle_task_lock, name='toggle_task_lock'),
     
+    # Bulk task operations
+    path('api/tasks/bulk-delete/', views.bulk_delete_tasks, name='bulk_delete_tasks'),
+    path('api/tasks/delete-completed/', views.delete_completed_tasks, name='delete_completed_tasks'),
+    
     # Kanban board
     path('kanban/', views.KanbanView.as_view(), name='kanban'),
     path('kanban/update-status/', views.update_task_status, name='update_task_status'),

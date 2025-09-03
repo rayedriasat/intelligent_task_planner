@@ -13,12 +13,32 @@
             </p>
         </div>
         <div class="flex space-x-3">
-            <a href="{% url 'planner:kanban' %}" class="btn-secondary">
-                Kanban View
-            </a>
-            <a href="{% url 'planner:task_create' %}" class="btn-primary">
-                Create Task
-            </a>
+            <!-- Bulk Actions -->
+            <div class="bulk-actions hidden bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg px-4 py-2 flex items-center space-x-3">
+                <span class="text-sm font-medium text-orange-800 dark:text-orange-200" id="selected-count">0 selected</span>
+                <button type="button" onclick="bulkDeleteSelected()" class="btn-sm bg-red-600 hover:bg-red-700 text-white">
+                    Delete Selected
+                </button>
+                <button type="button" onclick="clearBulkSelection()" class="btn-sm bg-gray-600 hover:bg-gray-700 text-white">
+                    Cancel
+                </button>
+            </div>
+            
+            <!-- Regular Actions -->
+            <div class="regular-actions flex space-x-3">
+                <button type="button" onclick="toggleBulkMode()" class="btn-secondary" id="bulk-mode-toggle">
+                    Select Tasks
+                </button>
+                <button type="button" onclick="deleteAllCompleted()" class="btn-secondary text-red-600 hover:text-red-700">
+                    Clear Completed
+                </button>
+                <a href="{% url 'planner:kanban' %}" class="btn-secondary">
+                    Kanban View
+                </a>
+                <a href="{% url 'planner:task_create' %}" class="btn-primary">
+                    Create Task
+                </a>
+            </div>
         </div>
     </div>
 
@@ -75,6 +95,11 @@
                 <thead class="bg-gray-50 dark:bg-gray-800">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                            <div class="bulk-checkbox-header hidden">
+                                <input type="checkbox" id="select-all-checkbox" class="rounded">
+                            </div>
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                             Task
                         </th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
@@ -99,7 +124,14 @@
                 </thead>
                 <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {% for task in tasks %}
-                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <tr class="hover:bg-gray-50 dark:hover:bg-gray-800" data-task-id="{{ task.id }}">
+                        <td class="px-6 py-4">
+                            <div class="bulk-checkbox-cell hidden">
+                                <input type="checkbox" 
+                                       class="task-bulk-checkbox rounded"
+                                       data-task-id="{{ task.id }}">
+                            </div>
+                        </td>
                         <td class="px-6 py-4">
                             <div class="flex items-start">
                                 <div class="flex-1 min-w-0">
@@ -284,6 +316,160 @@ function quickScheduleTask(taskId) {
     .catch(error => {
         console.error('Error:', error);
         alert('Failed to schedule task');
+    });
+}
+
+// Bulk selection functionality
+let bulkMode = false;
+let selectedTasks = new Set();
+
+function toggleBulkMode() {
+    bulkMode = !bulkMode;
+    const checkboxHeaders = document.querySelectorAll('.bulk-checkbox-header');
+    const checkboxCells = document.querySelectorAll('.bulk-checkbox-cell');
+    const bulkActions = document.querySelector('.bulk-actions');
+    const regularActions = document.querySelector('.regular-actions');
+    const toggleButton = document.getElementById('bulk-mode-toggle');
+    
+    if (bulkMode) {
+        // Show checkboxes
+        checkboxHeaders.forEach(header => header.classList.remove('hidden'));
+        checkboxCells.forEach(cell => cell.classList.remove('hidden'));
+        bulkActions.classList.remove('hidden');
+        toggleButton.textContent = 'Cancel Selection';
+    } else {
+        // Hide checkboxes
+        checkboxHeaders.forEach(header => header.classList.add('hidden'));
+        checkboxCells.forEach(cell => cell.classList.add('hidden'));
+        bulkActions.classList.add('hidden');
+        toggleButton.textContent = 'Select Tasks';
+        clearBulkSelection();
+    }
+}
+
+function clearBulkSelection() {
+    selectedTasks.clear();
+    document.querySelectorAll('.task-bulk-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.getElementById('select-all-checkbox').checked = false;
+    updateSelectedCount();
+}
+
+function updateSelectedCount() {
+    const count = selectedTasks.size;
+    document.getElementById('selected-count').textContent = `${count} selected`;
+}
+
+// Handle checkbox clicks
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('task-bulk-checkbox')) {
+        const taskId = e.target.dataset.taskId;
+        if (e.target.checked) {
+            selectedTasks.add(taskId);
+        } else {
+            selectedTasks.delete(taskId);
+        }
+        updateSelectedCount();
+        
+        // Update select all checkbox
+        const allCheckboxes = document.querySelectorAll('.task-bulk-checkbox');
+        const selectAllCheckbox = document.getElementById('select-all-checkbox');
+        selectAllCheckbox.checked = selectedTasks.size === allCheckboxes.length;
+    }
+    
+    if (e.target.id === 'select-all-checkbox') {
+        const allCheckboxes = document.querySelectorAll('.task-bulk-checkbox');
+        if (e.target.checked) {
+            allCheckboxes.forEach(checkbox => {
+                checkbox.checked = true;
+                selectedTasks.add(checkbox.dataset.taskId);
+            });
+        } else {
+            allCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+                selectedTasks.delete(checkbox.dataset.taskId);
+            });
+        }
+        updateSelectedCount();
+    }
+});
+
+function bulkDeleteSelected() {
+    if (selectedTasks.size === 0) {
+        alert('No tasks selected');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${selectedTasks.size} task(s)?`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    selectedTasks.forEach(taskId => {
+        formData.append('task_ids[]', taskId);
+    });
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "planner:bulk_delete_tasks" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to delete tasks');
+    });
+}
+
+function deleteAllCompleted() {
+    const completedTasks = document.querySelectorAll('tr[data-task-id]');
+    let completedCount = 0;
+    
+    // Count completed tasks by checking status badges
+    completedTasks.forEach(row => {
+        const statusBadge = row.querySelector('span');
+        if (statusBadge && statusBadge.textContent.trim() === 'Completed') {
+            completedCount++;
+        }
+    });
+    
+    if (completedCount === 0) {
+        alert('No completed tasks to delete');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete all ${completedCount} completed task(s)?`)) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "planner:delete_completed_tasks" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to delete completed tasks');
     });
 }
 </script>

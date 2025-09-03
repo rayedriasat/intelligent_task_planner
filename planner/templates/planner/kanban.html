@@ -16,12 +16,32 @@
             <h1 class="text-2xl font-bold text-primary">My Tasks</h1>
         </div>
         <div class="flex space-x-3">
-            <a href="{% url 'planner:task_list' %}" class="btn-secondary">
-                List View
-            </a>
-            <button onclick="document.getElementById('taskModal').classList.remove('hidden')" class="btn-primary">
-                Add Task
-            </button>
+            <!-- Bulk Actions -->
+            <div class="bulk-actions hidden bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg px-4 py-2 flex items-center space-x-3">
+                <span class="text-sm font-medium text-orange-800 dark:text-orange-200" id="selected-count">0 selected</span>
+                <button type="button" onclick="bulkDeleteSelected()" class="btn-sm bg-red-600 hover:bg-red-700 text-white">
+                    Delete Selected
+                </button>
+                <button type="button" onclick="clearBulkSelection()" class="btn-sm bg-gray-600 hover:bg-gray-700 text-white">
+                    Cancel
+                </button>
+            </div>
+            
+            <!-- Regular Actions -->
+            <div class="regular-actions flex space-x-3">
+                <button type="button" onclick="toggleBulkMode()" class="btn-secondary" id="bulk-mode-toggle">
+                    Select Tasks
+                </button>
+                <button type="button" onclick="deleteAllCompleted()" class="btn-secondary text-red-600 hover:text-red-700">
+                    Clear Completed
+                </button>
+                <a href="{% url 'planner:task_list' %}" class="btn-secondary">
+                    List View
+                </a>
+                <button onclick="document.getElementById('taskModal').classList.remove('hidden')" class="btn-primary">
+                    Add Task
+                </button>
+            </div>
         </div>
     </div>
 
@@ -393,5 +413,144 @@
     // Make functions globally available
     window.triggerConfetti = triggerConfetti;
     window.updateTaskStatusWithConfetti = updateTaskStatusWithConfetti;
+    
+    // Bulk selection functionality
+    let bulkMode = false;
+    let selectedTasks = new Set();
+    
+    window.toggleBulkMode = function() {
+        bulkMode = !bulkMode;
+        const checkboxes = document.querySelectorAll('.bulk-checkbox-container');
+        const bulkActions = document.querySelector('.bulk-actions');
+        const regularActions = document.querySelector('.regular-actions');
+        const toggleButton = document.getElementById('bulk-mode-toggle');
+        
+        if (bulkMode) {
+            // Show checkboxes
+            checkboxes.forEach(container => {
+                container.classList.remove('opacity-0');
+                container.classList.add('opacity-100');
+            });
+            bulkActions.classList.remove('hidden');
+            toggleButton.textContent = 'Cancel Selection';
+        } else {
+            // Hide checkboxes
+            checkboxes.forEach(container => {
+                container.classList.add('opacity-0');
+                container.classList.remove('opacity-100');
+            });
+            bulkActions.classList.add('hidden');
+            toggleButton.textContent = 'Select Tasks';
+            clearBulkSelection();
+        }
+    };
+    
+    window.clearBulkSelection = function() {
+        selectedTasks.clear();
+        document.querySelectorAll('.task-bulk-checkbox').forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        updateSelectedCount();
+    };
+    
+    function updateSelectedCount() {
+        const count = selectedTasks.size;
+        document.getElementById('selected-count').textContent = `${count} selected`;
+    }
+    
+    // Handle checkbox clicks
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('task-bulk-checkbox')) {
+            const taskId = e.target.dataset.taskId;
+            if (e.target.checked) {
+                selectedTasks.add(taskId);
+            } else {
+                selectedTasks.delete(taskId);
+            }
+            updateSelectedCount();
+        }
+    });
+    
+    window.bulkDeleteSelected = function() {
+        if (selectedTasks.size === 0) {
+            alert('No tasks selected');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete ${selectedTasks.size} task(s)?`)) {
+            return;
+        }
+        
+        const formData = new FormData();
+        selectedTasks.forEach(taskId => {
+            formData.append('task_ids[]', taskId);
+        });
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "planner:bulk_delete_tasks" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove deleted tasks from UI
+                selectedTasks.forEach(taskId => {
+                    const taskElement = document.getElementById(`task-${taskId}`);
+                    if (taskElement) {
+                        taskElement.remove();
+                    }
+                });
+                clearBulkSelection();
+                updateColumnCounts();
+                updateEmptyStates();
+                alert(data.message);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete tasks');
+        });
+    };
+    
+    window.deleteAllCompleted = function() {
+        const completedTasks = document.querySelectorAll('#completed-column .task-card');
+        const count = completedTasks.length;
+        
+        if (count === 0) {
+            alert('No completed tasks to delete');
+            return;
+        }
+        
+        if (!confirm(`Are you sure you want to delete all ${count} completed task(s)?`)) {
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "planner:delete_completed_tasks" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove all completed tasks from UI
+                completedTasks.forEach(task => task.remove());
+                updateColumnCounts();
+                updateEmptyStates();
+                alert(data.message);
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to delete completed tasks');
+        });
+    };
 </script>
 {% endblock %}

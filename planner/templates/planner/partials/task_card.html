@@ -2,6 +2,14 @@
      data-task-id="{{ task.id }}" 
      id="task-{{ task.id }}">
     
+    <!-- Bulk selection checkbox -->
+    <div class="absolute top-2 left-2 opacity-0 transition-opacity duration-200 bulk-checkbox-container">
+        <input type="checkbox" 
+               class="task-bulk-checkbox"
+               data-task-id="{{ task.id }}"
+               style="transform: scale(0.8);">
+    </div>
+    
     <div class="flex justify-between items-start mb-2">
         <h3 class="font-medium text-sm">{{ task.title }}</h3>
         <div class="flex items-center space-x-1">

@@ -204,6 +204,56 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
         return Task.objects.filter(user=self.request.user)
 
 
+@login_required
+@require_POST
+def bulk_delete_tasks(request):
+    """Delete multiple tasks at once."""
+    try:
+        task_ids = request.POST.getlist('task_ids[]')
+        if not task_ids:
+            return JsonResponse({'success': False, 'error': 'No tasks selected'})
+        
+        # Convert to integers and filter by user
+        task_ids = [int(id) for id in task_ids]
+        deleted_count = Task.objects.filter(
+            id__in=task_ids,
+            user=request.user
+        ).delete()[0]
+        
+        return JsonResponse({
+            'success': True,
+            'deleted_count': deleted_count,
+            'message': f'{deleted_count} task(s) deleted successfully'
+        })
+        
+    except (ValueError, TypeError) as e:
+        return JsonResponse({'success': False, 'error': 'Invalid task IDs'})
+    except Exception as e:
+        logger.error(f'Error bulk deleting tasks: {e}')
+        return JsonResponse({'success': False, 'error': 'Failed to delete tasks'})
+
+
+@login_required
+@require_POST
+def delete_completed_tasks(request):
+    """Delete all completed tasks for the user."""
+    try:
+        deleted_count = Task.objects.filter(
+            user=request.user,
+            status='completed'
+        ).delete()[0]
+        
+        return JsonResponse({
+            'success': True,
+            'deleted_count': deleted_count,
+            'message': f'{deleted_count} completed task(s) deleted successfully'
+        })
+        
+    except Exception as e:
+        logger.error(f'Error deleting completed tasks: {e}')
+        return JsonResponse({'success': False, 'error': 'Failed to delete completed tasks'})
+
+
 class ProfileView(LoginRequiredMixin, TemplateView):
     """User profile view showing email and connected accounts."""
     template_name = 'planner/profile.html'
