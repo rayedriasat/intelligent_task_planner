@@ -4,7 +4,8 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
-from datetime import timedelta
+from datetime import timedelta, date
+from django.db.models import Count, Q
 
 
 class Task(models.Model):
@@ -732,3 +733,256 @@ class CanvasSyncLog(models.Model):
 
     def __str__(self):
         return f"Canvas {self.get_sync_type_display()} - {self.status} ({self.timestamp})"
+
+
+# Habit Tracking Models
+
+class Habit(models.Model):
+    """Model for tracking user habits."""
+    
+    FREQUENCY_CHOICES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+    ]
+    
+    CATEGORY_CHOICES = [
+        ('health', 'Health & Fitness'),
+        ('learning', 'Learning & Education'),
+        ('productivity', 'Productivity'),
+        ('mindfulness', 'Mindfulness & Mental Health'),
+        ('social', 'Social & Relationships'),
+        ('hobbies', 'Hobbies & Recreation'),
+        ('work', 'Work & Career'),
+        ('finance', 'Finance'),
+        ('other', 'Other'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='habits')
+    title = models.CharField(max_length=255, help_text="What habit do you want to track?")
+    description = models.TextField(blank=True, null=True, help_text="Additional details about your habit")
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
+    target_frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default='daily')
+    target_count = models.PositiveIntegerField(default=1, help_text="How many times per frequency period?")
+    unit = models.CharField(max_length=50, blank=True, help_text="Unit of measurement (e.g., minutes, pages, cups)")
+    
+    # Goal and motivation
+    goal_description = models.TextField(blank=True, null=True, help_text="Why is this habit important to you?")
+    target_streak = models.PositiveIntegerField(null=True, blank=True, help_text="Target streak (optional)")
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    # Color for visual representation
+    color = models.CharField(
+        max_length=7, 
+        default='#3B82F6',
+        help_text="Hex color code for habit visualization"
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'is_active']),
+            models.Index(fields=['user', 'category']),
+            models.Index(fields=['user', 'target_frequency']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} ({self.get_target_frequency_display()})"
+    
+    @property
+    def current_streak(self):
+        """Calculate current streak of consecutive completions."""
+        today = date.today()
+        streak = 0
+        current_date = today
+        
+        # Count backwards from today until we find a missed day
+        while True:
+            if self.target_frequency == 'daily':
+                entry = self.entries.filter(date=current_date).first()
+                if entry and entry.is_completed:
+                    streak += 1
+                    current_date -= timedelta(days=1)
+                else:
+                    break
+            elif self.target_frequency == 'weekly':
+                # For weekly habits, check if the week was completed
+                week_start = current_date - timedelta(days=current_date.weekday())
+                week_end = week_start + timedelta(days=6)
+                week_entries = self.entries.filter(
+                    date__gte=week_start, 
+                    date__lte=week_end,
+                    is_completed=True
+                ).count()
+                if week_entries >= self.target_count:
+                    streak += 1
+                    current_date = week_start - timedelta(days=1)
+                else:
+                    break
+            elif self.target_frequency == 'monthly':
+                # For monthly habits, check if the month was completed
+                month_entries = self.entries.filter(
+                    date__year=current_date.year,
+                    date__month=current_date.month,
+                    is_completed=True
+                ).count()
+                if month_entries >= self.target_count:
+                    streak += 1
+                    if current_date.month == 1:
+                        current_date = date(current_date.year - 1, 12, 31)
+                    else:
+                        current_date = date(current_date.year, current_date.month - 1, 1)
+                else:
+                    break
+        
+        return streak
+    
+    @property
+    def longest_streak(self):
+        """Calculate the longest streak ever achieved for this habit."""
+        # This is a more complex calculation that would require
+        # iterating through all entries to find the longest consecutive sequence
+        # For now, we'll return a simple calculation
+        return self.entries.filter(is_completed=True).count()
+    
+    @property
+    def completion_rate(self):
+        """Calculate the overall completion rate as a percentage."""
+        total_entries = self.entries.count()
+        if total_entries == 0:
+            return 0
+        completed_entries = self.entries.filter(is_completed=True).count()
+        return round((completed_entries / total_entries) * 100, 1)
+    
+    @property
+    def today_status(self):
+        """Get today's completion status."""
+        today = date.today()
+        entry = self.entries.filter(date=today).first()
+        if entry:
+            return 'completed' if entry.is_completed else 'pending'
+        return 'not_started'
+    
+    def get_or_create_today_entry(self):
+        """Get or create today's habit entry."""
+        today = date.today()
+        entry, created = self.entries.get_or_create(
+            date=today,
+            defaults={
+                'is_completed': False,
+                'count': 0
+            }
+        )
+        return entry, created
+    
+    def mark_today_complete(self, count=None, notes=None):
+        """Mark today's habit as completed."""
+        entry, created = self.get_or_create_today_entry()
+        entry.is_completed = True
+        entry.count = count or self.target_count
+        if notes:
+            entry.notes = notes
+        entry.save()
+        return entry
+    
+    def mark_today_incomplete(self):
+        """Mark today's habit as incomplete."""
+        entry, created = self.get_or_create_today_entry()
+        entry.is_completed = False
+        entry.count = 0
+        entry.save()
+        return entry
+
+
+class HabitEntry(models.Model):
+    """Model for tracking individual habit completions."""
+    
+    habit = models.ForeignKey(Habit, on_delete=models.CASCADE, related_name='entries')
+    date = models.DateField(help_text="Date when the habit was performed")
+    is_completed = models.BooleanField(default=False)
+    count = models.PositiveIntegerField(default=0, help_text="How many times the habit was performed")
+    notes = models.TextField(blank=True, null=True, help_text="Optional notes about this entry")
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        unique_together = ['habit', 'date']
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['habit', 'date']),
+            models.Index(fields=['habit', 'is_completed']),
+            models.Index(fields=['date', 'is_completed']),
+        ]
+    
+    def __str__(self):
+        status = "✓" if self.is_completed else "✗"
+        return f"{self.habit.title} - {self.date} {status}"
+    
+    @property
+    def is_target_met(self):
+        """Check if the target count was met for this entry."""
+        return self.count >= self.habit.target_count
+
+
+class HabitMilestone(models.Model):
+    """Model for tracking habit milestones and achievements."""
+    
+    MILESTONE_TYPES = [
+        ('streak', 'Streak Milestone'),
+        ('total', 'Total Completions'),
+        ('consistency', 'Consistency Achievement'),
+        ('custom', 'Custom Milestone'),
+    ]
+    
+    habit = models.ForeignKey(Habit, on_delete=models.CASCADE, related_name='milestones')
+    milestone_type = models.CharField(max_length=20, choices=MILESTONE_TYPES)
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    target_value = models.PositiveIntegerField(help_text="Target value to achieve (days, count, etc.)")
+    is_achieved = models.BooleanField(default=False)
+    achieved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-achieved_at', '-created_at']
+        indexes = [
+            models.Index(fields=['habit', 'milestone_type']),
+            models.Index(fields=['habit', 'is_achieved']),
+        ]
+    
+    def __str__(self):
+        status = "🏆" if self.is_achieved else "⭕"
+        return f"{self.title} {status}"
+    
+    def check_and_mark_achieved(self):
+        """Check if milestone should be marked as achieved."""
+        if self.is_achieved:
+            return False
+            
+        achieved = False
+        
+        if self.milestone_type == 'streak':
+            achieved = self.habit.current_streak >= self.target_value
+        elif self.milestone_type == 'total':
+            total_completed = self.habit.entries.filter(is_completed=True).count()
+            achieved = total_completed >= self.target_value
+        elif self.milestone_type == 'consistency':
+            # For consistency, check if completion rate is above target
+            achieved = self.habit.completion_rate >= self.target_value
+        
+        if achieved:
+            self.is_achieved = True
+            self.achieved_at = timezone.now()
+            self.save()
+            return True
+        
+        return False

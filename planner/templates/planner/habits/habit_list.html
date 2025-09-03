@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Habits - Intelligent Task Planner{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">My Habits</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Manage and track all your habits</p>
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'planner:habit_dashboard' %}" 
+               class="btn-secondary flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0H8v0z"/>
+                </svg>
+                Dashboard
+            </a>
+            <a href="{% url 'planner:habit_create' %}" 
+               class="btn-primary flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Habit
+            </a>
+        </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="glass-card p-6 text-center">
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ total_habits }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Total Habits</div>
+        </div>
+        <div class="glass-card p-6 text-center">
+            <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ overall_completion_rate }}%</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Overall Completion</div>
+        </div>
+        <div class="glass-card p-6 text-center">
+            <div class="text-3xl font-bold text-purple-600 dark:text-purple-400">{{ active_streaks }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Active Streaks</div>
+        </div>
+    </div>
+
+    <!-- Habits List -->
+    {% if habits %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for habit in habits %}
+                <div class="glass-card p-6 hover:shadow-lg transition-shadow">
+                    <!-- Habit Header -->
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-4 h-12 rounded-full" style="background-color: {{ habit.color }};"></div>
+                            <div>
+                                <h3 class="font-semibold text-gray-900 dark:text-white">{{ habit.title }}</h3>
+                                <p class="text-sm text-gray-500 dark:text-gray-400">{{ habit.get_category_display }}</p>
+                            </div>
+                        </div>
+                        <div class="flex space-x-1">
+                            <a href="{% url 'planner:habit_detail' habit.pk %}" 
+                               class="p-2 text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                </svg>
+                            </a>
+                            <a href="{% url 'planner:habit_update' habit.pk %}" 
+                               class="p-2 text-gray-600 hover:text-gray-800 dark:text-gray-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Today's Status -->
+                    <div class="mb-4">
+                        {% if habit.today_entry %}
+                            {% if habit.today_entry.is_completed %}
+                                <div class="flex items-center space-x-2 text-green-600 dark:text-green-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span class="text-sm font-medium">Completed today</span>
+                                </div>
+                            {% else %}
+                                <div class="flex items-center space-x-2 text-orange-600 dark:text-orange-400">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span class="text-sm font-medium">Pending today</span>
+                                </div>
+                            {% endif %}
+                        {% else %}
+                            <div class="flex items-center space-x-2 text-gray-500 dark:text-gray-400">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="text-sm font-medium">Not started today</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Habit Stats -->
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ habit.current_streak }}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Current Streak</div>
+                        </div>
+                        <div class="text-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <div class="text-xl font-bold text-gray-900 dark:text-white">{{ habit.completion_rate }}%</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Completion Rate</div>
+                        </div>
+                    </div>
+
+                    <!-- Habit Details -->
+                    <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        <div class="flex justify-between">
+                            <span>Frequency:</span>
+                            <span class="font-medium">{{ habit.get_target_frequency_display }}</span>
+                        </div>
+                        {% if habit.target_count > 1 %}
+                            <div class="flex justify-between">
+                                <span>Target:</span>
+                                <span class="font-medium">{{ habit.target_count }}{% if habit.unit %} {{ habit.unit }}{% endif %}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="mt-4 flex space-x-2">
+                        {% if habit.today_entry and habit.today_entry.is_completed %}
+                            <button onclick="toggleHabit({{ habit.id }})" 
+                                    class="flex-1 btn-secondary text-sm py-2">
+                                Mark Incomplete
+                            </button>
+                        {% else %}
+                            <button onclick="toggleHabit({{ habit.id }})" 
+                                    class="flex-1 btn-primary text-sm py-2">
+                                Mark Complete
+                            </button>
+                        {% endif %}
+                        <a href="{% url 'planner:habit_analytics' habit.pk %}" 
+                           class="px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 border border-gray-300 dark:border-gray-600 rounded-lg transition-colors">
+                            Analytics
+                        </a>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <div class="mt-8 flex justify-center">
+                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                    {% if page_obj.has_previous %}
+                        <a href="?page={{ page_obj.previous_page_number }}" 
+                           class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            Previous
+                        </a>
+                    {% endif %}
+                    
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-600">
+                                {{ num }}
+                            </span>
+                        {% else %}
+                            <a href="?page={{ num }}" 
+                               class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                                {{ num }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}" 
+                           class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                            Next
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+        {% endif %}
+
+    {% else %}
+        <!-- Empty State -->
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900 dark:text-white">No habits found</h3>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Get started by creating your first habit.</p>
+            <div class="mt-6">
+                <a href="{% url 'planner:habit_create' %}" class="btn-primary">Create your first habit</a>
+            </div>
+        </div>
+    {% endif %}
+</div>
+
+<!-- Recent Achievements Modal -->
+{% if recent_achievements %}
+    <div id="achievementsModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+        <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75"></div>
+            <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <div class="sm:flex sm:items-start">
+                        <div class="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 sm:mx-0 sm:h-10 sm:w-10">
+                            🏆
+                        </div>
+                        <div class="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
+                            <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Recent Achievements</h3>
+                            <div class="mt-2">
+                                {% for achievement in recent_achievements %}
+                                    <div class="mb-2 p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded">
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ achievement.title }}</p>
+                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ achievement.achieved_at|timesince }} ago</p>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button onclick="closeAchievementsModal()" type="button" class="btn-secondary">
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+<script>
+// CSRF token setup
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+// Toggle habit completion
+async function toggleHabit(habitId) {
+    try {
+        const response = await fetch(`/api/habits/${habitId}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Reload page to update UI
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Error toggling habit:', error);
+        alert('Error updating habit. Please try again.');
+    }
+}
+
+// Show achievements modal if there are recent achievements
+{% if recent_achievements %}
+function showAchievementsModal() {
+    document.getElementById('achievementsModal').classList.remove('hidden');
+}
+
+function closeAchievementsModal() {
+    document.getElementById('achievementsModal').classList.add('hidden');
+}
+{% endif %}
+</script>
+{% endblock %}

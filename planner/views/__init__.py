@@ -98,6 +98,21 @@ from .canvas_views import (
     canvas_announcement_to_task,
 )
 
+from .habit_views import (
+    HabitListView,
+    HabitDetailView,
+    HabitCreateView,
+    HabitUpdateView,
+    HabitDeleteView,
+    habit_dashboard,
+    toggle_habit_completion,
+    update_habit_entry,
+    habit_analytics,
+    create_habit_milestone,
+    quick_add_habit,
+    bulk_update_habits,
+)
+
 # Expose all views in __all__ for explicit imports
 __all__ = [
     # Task views
@@ -186,4 +201,18 @@ __all__ = [
     'toggle_canvas_integration',
     'CanvasDataView',
     'canvas_announcement_to_task',
+    
+    # Habit views
+    'HabitListView',
+    'HabitDetailView',
+    'HabitCreateView',
+    'HabitUpdateView',
+    'HabitDeleteView',
+    'habit_dashboard',
+    'toggle_habit_completion',
+    'update_habit_entry',
+    'habit_analytics',
+    'create_habit_milestone',
+    'quick_add_habit',
+    'bulk_update_habits',
 ]

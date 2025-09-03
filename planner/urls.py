@@ -103,4 +103,20 @@ urlpatterns = [
     # PDF Export
     path('schedule/pdf/', SchedulePdfFormView.as_view(), name='schedule_pdf_form'),
     path('schedule/pdf/generate/<str:start_date>/<str:end_date>/', SchedulePdfGenerateView.as_view(), name='schedule_pdf_generate'),
+    
+    # Habit Tracking
+    path('habits/', views.habit_dashboard, name='habit_dashboard'),
+    path('habits/list/', views.HabitListView.as_view(), name='habit_list'),
+    path('habits/create/', views.HabitCreateView.as_view(), name='habit_create'),
+    path('habits/<int:pk>/', views.HabitDetailView.as_view(), name='habit_detail'),
+    path('habits/<int:pk>/edit/', views.HabitUpdateView.as_view(), name='habit_update'),
+    path('habits/<int:pk>/delete/', views.HabitDeleteView.as_view(), name='habit_delete'),
+    path('habits/<int:pk>/analytics/', views.habit_analytics, name='habit_analytics'),
+    path('habits/<int:pk>/milestone/create/', views.create_habit_milestone, name='create_habit_milestone'),
+    
+    # Habit API endpoints
+    path('api/habits/quick-add/', views.quick_add_habit, name='quick_add_habit'),
+    path('api/habits/<int:habit_id>/toggle/', views.toggle_habit_completion, name='toggle_habit_completion'),
+    path('api/habits/<int:habit_id>/update-entry/', views.update_habit_entry, name='update_habit_entry'),
+    path('api/habits/bulk-update/', views.bulk_update_habits, name='bulk_update_habits'),
 ]

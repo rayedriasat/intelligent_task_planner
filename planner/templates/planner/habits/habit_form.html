@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if object %}Edit Habit{% else %}Create Habit{% endif %} - Intelligent Task Planner
+{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+            {% if object %}Edit Habit{% else %}Create New Habit{% endif %}
+        </h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">
+            {% if object %}
+                Update your habit details and tracking preferences
+            {% else %}
+                Set up a new habit to track and build consistency
+            {% endif %}
+        </p>
+    </div>
+
+    <!-- Form -->
+    <div class="glass-card p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Title -->
+            <div>
+                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Habit Name *
+                </label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {{ form.title.errors|first }}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Give your habit a clear, specific name (e.g., "Read for 30 minutes", "Drink 8 glasses of water")
+                </p>
+            </div>
+
+            <!-- Category and Frequency Row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.category.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Category *
+                    </label>
+                    {{ form.category }}
+                    {% if form.category.errors %}
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ form.category.errors|first }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <div>
+                    <label for="{{ form.target_frequency.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Frequency *
+                    </label>
+                    {{ form.target_frequency }}
+                    {% if form.target_frequency.errors %}
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ form.target_frequency.errors|first }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Target Count and Unit Row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.target_count.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Target Count *
+                    </label>
+                    {{ form.target_count }}
+                    {% if form.target_count.errors %}
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ form.target_count.errors|first }}
+                        </div>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ form.target_count.help_text }}
+                    </p>
+                </div>
+
+                <div>
+                    <label for="{{ form.unit.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Unit (Optional)
+                    </label>
+                    {{ form.unit }}
+                    {% if form.unit.errors %}
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ form.unit.errors|first }}
+                        </div>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ form.unit.help_text }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description (Optional)
+                </label>
+                {{ form.description }}
+                {% if form.description.errors %}
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {{ form.description.errors|first }}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Add any additional details about your habit
+                </p>
+            </div>
+
+            <!-- Goal Description -->
+            <div>
+                <label for="{{ form.goal_description.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Why is this habit important? (Optional)
+                </label>
+                {{ form.goal_description }}
+                {% if form.goal_description.errors %}
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {{ form.goal_description.errors|first }}
+                    </div>
+                {% endif %}
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    Describing your motivation can help you stay committed
+                </p>
+            </div>
+
+            <!-- Target Streak and Color Row -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="{{ form.target_streak.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Target Streak (Optional)
+                    </label>
+                    {{ form.target_streak }}
+                    {% if form.target_streak.errors %}
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ form.target_streak.errors|first }}
+                        </div>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ form.target_streak.help_text }}
+                    </p>
+                </div>
+
+                <div>
+                    <label for="{{ form.color.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Color Theme
+                    </label>
+                    <div class="flex items-center space-x-4">
+                        {{ form.color }}
+                        <div class="flex space-x-2">
+                            <!-- Preset color options -->
+                            <button type="button" onclick="setColor('#3B82F6')" class="w-8 h-8 rounded-full bg-blue-500 border-2 border-gray-300 hover:border-gray-400 transition-colors"></button>
+                            <button type="button" onclick="setColor('#10B981')" class="w-8 h-8 rounded-full bg-green-500 border-2 border-gray-300 hover:border-gray-400 transition-colors"></button>
+                            <button type="button" onclick="setColor('#8B5CF6')" class="w-8 h-8 rounded-full bg-purple-500 border-2 border-gray-300 hover:border-gray-400 transition-colors"></button>
+                            <button type="button" onclick="setColor('#F59E0B')" class="w-8 h-8 rounded-full bg-yellow-500 border-2 border-gray-300 hover:border-gray-400 transition-colors"></button>
+                            <button type="button" onclick="setColor('#EF4444')" class="w-8 h-8 rounded-full bg-red-500 border-2 border-gray-300 hover:border-gray-400 transition-colors"></button>
+                            <button type="button" onclick="setColor('#06B6D4')" class="w-8 h-8 rounded-full bg-cyan-500 border-2 border-gray-300 hover:border-gray-400 transition-colors"></button>
+                        </div>
+                    </div>
+                    {% if form.color.errors %}
+                        <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                            {{ form.color.errors|first }}
+                        </div>
+                    {% endif %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        {{ form.color.help_text }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% if object %}{% url 'planner:habit_detail' object.pk %}{% else %}{% url 'planner:habit_list' %}{% endif %}" 
+                   class="btn-secondary">
+                    Cancel
+                </a>
+                <div class="flex space-x-3">
+                    {% if object %}
+                        <a href="{% url 'planner:habit_delete' object.pk %}" 
+                           class="px-4 py-2 text-sm font-medium text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 border border-red-300 dark:border-red-600 rounded-lg transition-colors">
+                            Delete Habit
+                        </a>
+                    {% endif %}
+                    <button type="submit" class="btn-primary">
+                        {% if object %}Update Habit{% else %}Create Habit{% endif %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- Tips Section -->
+    <div class="mt-8 glass-card p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">💡 Tips for Successful Habits</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 dark:text-gray-400">
+            <div class="space-y-2">
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-500 mt-0.5">✓</span>
+                    <span>Start small - even 5 minutes daily builds momentum</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-500 mt-0.5">✓</span>
+                    <span>Be specific - "Exercise for 30 minutes" vs "Exercise"</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-500 mt-0.5">✓</span>
+                    <span>Link to existing routines - habit stacking works</span>
+                </div>
+            </div>
+            <div class="space-y-2">
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-500 mt-0.5">✓</span>
+                    <span>Track consistently - even missed days are valuable data</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-500 mt-0.5">✓</span>
+                    <span>Focus on consistency over perfection</span>
+                </div>
+                <div class="flex items-start space-x-2">
+                    <span class="text-green-500 mt-0.5">✓</span>
+                    <span>Celebrate small wins along the way</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set color from preset buttons
+function setColor(color) {
+    document.getElementById('{{ form.color.id_for_label }}').value = color;
+}
+
+// Form validation feedback
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    // Add visual feedback for required fields
+    requiredFields.forEach(field => {
+        field.addEventListener('blur', function() {
+            if (this.value.trim() === '') {
+                this.classList.add('border-red-300', 'focus:border-red-500', 'focus:ring-red-500');
+                this.classList.remove('border-gray-300', 'focus:border-blue-500', 'focus:ring-blue-500');
+            } else {
+                this.classList.remove('border-red-300', 'focus:border-red-500', 'focus:ring-red-500');
+                this.classList.add('border-gray-300', 'focus:border-blue-500', 'focus:ring-blue-500');
+            }
+        });
+    });
+    
+    // Update frequency-based help text
+    const frequencyField = document.getElementById('{{ form.target_frequency.id_for_label }}');
+    const countField = document.getElementById('{{ form.target_count.id_for_label }}');
+    
+    if (frequencyField && countField) {
+        frequencyField.addEventListener('change', function() {
+            const frequency = this.value;
+            const helpText = countField.parentElement.querySelector('.text-gray-500');
+            
+            if (frequency === 'daily') {
+                helpText.textContent = 'How many times should this be done each day?';
+            } else if (frequency === 'weekly') {
+                helpText.textContent = 'How many times should this be done each week?';
+            } else if (frequency === 'monthly') {
+                helpText.textContent = 'How many times should this be done each month?';
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

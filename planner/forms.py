@@ -1,7 +1,7 @@
 from django import forms
 from django.utils import timezone
-from datetime import datetime, timedelta
-from .models import Task, TimeBlock
+from datetime import datetime, timedelta, date
+from .models import Task, TimeBlock, Habit, HabitEntry, HabitMilestone
 
 
 class TaskForm(forms.ModelForm):
@@ -196,5 +196,239 @@ class PdfScheduleForm(forms.Form):
             # Limit to maximum of 4 weeks for performance
             if (end_date - start_date).days > 28:
                 raise forms.ValidationError("Date range cannot exceed 4 weeks.")
+        
+        return cleaned_data
+
+
+# Habit Forms
+
+class HabitForm(forms.ModelForm):
+    """Form for creating and editing habits."""
+    
+    class Meta:
+        model = Habit
+        fields = [
+            'title', 'description', 'category', 'target_frequency', 
+            'target_count', 'unit', 'goal_description', 'target_streak', 'color'
+        ]
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'placeholder': 'e.g., Read for 30 minutes, Drink 8 glasses of water'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'rows': 3,
+                'placeholder': 'Optional details about your habit'
+            }),
+            'category': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+            }),
+            'target_frequency': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+            }),
+            'target_count': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'min': '1',
+                'placeholder': '1'
+            }),
+            'unit': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'placeholder': 'e.g., minutes, pages, cups, times'
+            }),
+            'goal_description': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'rows': 2,
+                'placeholder': 'Why is this habit important to you?'
+            }),
+            'target_streak': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'min': '1',
+                'placeholder': 'e.g., 30 for 30-day streak'
+            }),
+            'color': forms.TextInput(attrs={
+                'type': 'color',
+                'class': 'w-20 h-12 rounded-lg border border-gray-300 dark:border-gray-600 cursor-pointer'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Make optional fields actually optional
+        self.fields['description'].required = False
+        self.fields['unit'].required = False
+        self.fields['goal_description'].required = False
+        self.fields['target_streak'].required = False
+        
+        # Add help text
+        self.fields['target_count'].help_text = "How many times should this be done per frequency period?"
+        self.fields['unit'].help_text = "Optional: What unit are you measuring? (e.g., minutes, pages, cups)"
+        self.fields['target_streak'].help_text = "Optional: Set a streak goal (e.g., 30 days in a row)"
+        self.fields['color'].help_text = "Choose a color to represent this habit in visualizations"
+    
+    def clean_target_count(self):
+        target_count = self.cleaned_data.get('target_count')
+        if target_count is not None and target_count < 1:
+            raise forms.ValidationError("Target count must be at least 1.")
+        return target_count
+    
+    def clean_target_streak(self):
+        target_streak = self.cleaned_data.get('target_streak')
+        if target_streak is not None and target_streak < 1:
+            raise forms.ValidationError("Target streak must be at least 1 day.")
+        return target_streak
+
+
+class QuickHabitForm(forms.ModelForm):
+    """Simplified form for quick habit creation."""
+    
+    class Meta:
+        model = Habit
+        fields = ['title', 'category', 'target_frequency']
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'placeholder': 'e.g., Exercise, Read, Meditate'
+            }),
+            'category': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+            }),
+            'target_frequency': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+            }),
+        }
+
+
+class HabitEntryForm(forms.ModelForm):
+    """Form for updating habit entries."""
+    
+    class Meta:
+        model = HabitEntry
+        fields = ['is_completed', 'count', 'notes']
+        widgets = {
+            'is_completed': forms.CheckboxInput(attrs={
+                'class': 'h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
+            }),
+            'count': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'min': '0',
+                'placeholder': '1'
+            }),
+            'notes': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'rows': 2,
+                'placeholder': 'Optional notes about today\'s progress'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        self.habit = kwargs.pop('habit', None)
+        super().__init__(*args, **kwargs)
+        
+        # Make notes optional
+        self.fields['notes'].required = False
+        
+        # Set default count based on habit target
+        if self.habit and not self.instance.pk:
+            self.fields['count'].initial = self.habit.target_count
+    
+    def clean_count(self):
+        count = self.cleaned_data.get('count')
+        if count is not None and count < 0:
+            raise forms.ValidationError("Count cannot be negative.")
+        return count
+
+
+class HabitMilestoneForm(forms.ModelForm):
+    """Form for creating custom habit milestones."""
+    
+    class Meta:
+        model = HabitMilestone
+        fields = ['milestone_type', 'title', 'description', 'target_value']
+        widgets = {
+            'milestone_type': forms.Select(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+            }),
+            'title': forms.TextInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'placeholder': 'e.g., 30-Day Streak, 100 Completions'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'rows': 2,
+                'placeholder': 'Optional description of this milestone'
+            }),
+            'target_value': forms.NumberInput(attrs={
+                'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
+                'min': '1',
+                'placeholder': '30'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Make description optional
+        self.fields['description'].required = False
+        
+        # Add help text
+        self.fields['target_value'].help_text = "Target value to achieve (days for streak, count for total, percentage for consistency)"
+    
+    def clean_target_value(self):
+        target_value = self.cleaned_data.get('target_value')
+        milestone_type = self.cleaned_data.get('milestone_type')
+        
+        if target_value is not None:
+            if target_value < 1:
+                raise forms.ValidationError("Target value must be at least 1.")
+            
+            # Additional validation based on milestone type
+            if milestone_type == 'consistency' and target_value > 100:
+                raise forms.ValidationError("Consistency milestone cannot exceed 100%.")
+        
+        return target_value
+
+
+class DateRangeForm(forms.Form):
+    """Form for selecting date ranges for habit analytics."""
+    
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+        }),
+        help_text="Select the start date for analysis"
+    )
+    
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+        }),
+        help_text="Select the end date for analysis"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set default to last 30 days
+        today = date.today()
+        thirty_days_ago = today - timedelta(days=30)
+        
+        self.fields['start_date'].initial = thirty_days_ago
+        self.fields['end_date'].initial = today
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        
+        if start_date and end_date:
+            if start_date > end_date:
+                raise forms.ValidationError("Start date must be before or equal to end date.")
+            
+            # Limit to maximum of 1 year for performance
+            if (end_date - start_date).days > 365:
+                raise forms.ValidationError("Date range cannot exceed 1 year.")
         
         return cleaned_data

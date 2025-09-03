@@ -1,0 +1,662 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ habit.title }} - Habit Details{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<!-- Ensure CSRF token is available for JavaScript -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+
+<div class="max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="flex justify-between items-start mb-8">
+        <div class="flex items-center space-x-4">
+            <div class="w-6 h-16 rounded-full" style="background-color: {{ habit.color }};"></div>
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 dark:text-white">{{ habit.title }}</h1>
+                <div class="flex items-center space-x-4 mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/>
+                        </svg>
+                        {{ habit.get_category_display }}
+                    </span>
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        {{ habit.get_target_frequency_display }}
+                    </span>
+                    {% if habit.target_count > 1 %}
+                        <span>{{ habit.target_count }}{% if habit.unit %} {{ habit.unit }}{% endif %}</span>
+                    {% endif %}
+                </div>
+                {% if habit.description %}
+                    <p class="text-gray-600 dark:text-gray-400 mt-2">{{ habit.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="flex space-x-3">
+            <a href="{% url 'planner:habit_analytics' habit.pk %}" class="btn-secondary">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+                Analytics
+            </a>
+            <a href="{% url 'planner:habit_update' habit.pk %}" class="btn-secondary">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                </svg>
+                Edit
+            </a>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div class="glass-card p-6 text-center">
+            <div class="text-3xl font-bold text-orange-600 dark:text-orange-400">{{ analytics.current_streak }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Current Streak</div>
+        </div>
+        <div class="glass-card p-6 text-center">
+            <div class="text-3xl font-bold text-green-600 dark:text-green-400">{{ analytics.completion_rate }}%</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Completion Rate</div>
+        </div>
+        <div class="glass-card p-6 text-center">
+            <div class="text-3xl font-bold text-purple-600 dark:text-purple-400">{{ analytics.longest_streak }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Longest Streak</div>
+        </div>
+        <div class="glass-card p-6 text-center">
+            <div class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ analytics.total_completions }}</div>
+            <div class="text-sm text-gray-600 dark:text-gray-400 mt-1">Total Completions</div>
+        </div>
+    </div>
+
+    <!-- Main Content Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Calendar View -->
+        <div class="lg:col-span-2">
+            <div class="glass-card p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Habit Calendar</h2>
+                    <div class="flex items-center space-x-4 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-green-500 rounded"></div>
+                            <span class="text-gray-600 dark:text-gray-400">Completed</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-yellow-500 rounded"></div>
+                            <span class="text-gray-600 dark:text-gray-400">Partial</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-red-500 rounded"></div>
+                            <span class="text-gray-600 dark:text-gray-400">Missed</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-gray-400 rounded"></div>
+                            <span class="text-gray-600 dark:text-gray-400">No data</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Calendar Grid -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                    <!-- Calendar Header -->
+                    <div class="bg-gray-50 dark:bg-gray-700 px-6 py-4 border-b border-gray-200 dark:border-gray-600">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Last 30 Days Progress</h3>
+                            <div class="flex items-center space-x-2 text-sm">
+                                <span class="text-gray-600 dark:text-gray-400">Scroll to see all days →</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Day Progress Strip -->
+                    <div class="p-4">
+                        <div id="habitCalendar" class="flex space-x-2 overflow-x-auto pb-2">
+                            <!-- Calendar cells will be generated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <!-- Calendar Legend -->
+                    <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+                        <div class="flex flex-wrap items-center justify-center space-x-6 text-sm">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                </div>
+                                <span class="text-gray-600 dark:text-gray-400">Completed</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center text-white text-xs font-bold">~</div>
+                                <span class="text-gray-600 dark:text-gray-400">Partial</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
+                                    <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </div>
+                                <span class="text-gray-600 dark:text-gray-400">Missed</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded-full"></div>
+                                <span class="text-gray-600 dark:text-gray-400">No Data</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Today's Entry -->
+                <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <h3 class="font-medium text-gray-900 dark:text-white mb-3">Today's Progress</h3>
+                    {% if today_entry %}
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-3">
+                                <button onclick="toggleToday()" 
+                                        class="w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors
+                                               {% if today_entry.is_completed %}bg-green-500 border-green-500{% else %}border-gray-300 hover:border-green-400{% endif %}">
+                                    {% if today_entry.is_completed %}
+                                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                        </svg>
+                                    {% endif %}
+                                </button>
+                                <span class="text-gray-900 dark:text-white">
+                                    {% if today_entry.is_completed %}Completed{% else %}Not completed{% endif %}
+                                    {% if today_entry.count > 0 %} ({{ today_entry.count }}{% if habit.unit %} {{ habit.unit }}{% endif %}){% endif %}
+                                </span>
+                            </div>
+                            <button onclick="editTodayEntry()" class="text-blue-600 hover:text-blue-800 dark:text-blue-400 text-sm">
+                                Edit Details
+                            </button>
+                        </div>
+                        {% if today_entry.notes %}
+                            <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">{{ today_entry.notes }}</p>
+                        {% endif %}
+                    {% else %}
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-600 dark:text-gray-400">No entry for today</span>
+                            <button onclick="markToday()" class="btn-primary text-sm">Mark as Done</button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Goal & Motivation -->
+            {% if habit.goal_description or habit.target_streak %}
+                <div class="glass-card p-6">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Goal & Motivation</h3>
+                    {% if habit.goal_description %}
+                        <p class="text-gray-600 dark:text-gray-400 mb-4">{{ habit.goal_description }}</p>
+                    {% endif %}
+                    {% if habit.target_streak %}
+                        <div class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                            <span class="text-sm font-medium text-gray-900 dark:text-white">Target Streak</span>
+                            <span class="text-lg font-bold text-blue-600 dark:text-blue-400">{{ habit.target_streak }} days</span>
+                        </div>
+                        <div class="mt-2 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full" 
+                                 style="width: {% widthratio analytics.current_streak habit.target_streak 100 %}%"></div>
+                        </div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 text-center">
+                            {{ analytics.current_streak }} / {{ habit.target_streak }} days
+                        </p>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Milestones -->
+            <div class="glass-card p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Milestones</h3>
+                    <a href="{% url 'planner:create_habit_milestone' habit.pk %}" 
+                       class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400">
+                        Add Custom
+                    </a>
+                </div>
+                
+                {% if milestones %}
+                    <div class="space-y-3">
+                        {% for milestone in milestones %}
+                            <div class="flex items-center justify-between p-3 rounded-lg
+                                        {% if milestone.is_achieved %}bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800{% else %}bg-gray-50 dark:bg-gray-800{% endif %}">
+                                <div class="flex items-center space-x-3">
+                                    <span class="text-xl">
+                                        {% if milestone.is_achieved %}🏆{% else %}⭕{% endif %}
+                                    </span>
+                                    <div>
+                                        <p class="text-sm font-medium text-gray-900 dark:text-white">{{ milestone.title }}</p>
+                                        {% if milestone.description %}
+                                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ milestone.description }}</p>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400">
+                                    {% if milestone.is_achieved %}
+                                        ✓ {{ milestone.achieved_at|date:"M j" }}
+                                    {% else %}
+                                        {{ milestone.target_value }}
+                                    {% endif %}
+                                </span>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No milestones set. Add some to track your progress!</p>
+                {% endif %}
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="glass-card p-6">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+                <div class="space-y-3">
+                    <a href="{% url 'planner:habit_analytics' habit.pk %}" 
+                       class="block w-full btn-secondary text-center">
+                        📊 View Analytics
+                    </a>
+                    <a href="{% url 'planner:habit_update' habit.pk %}" 
+                       class="block w-full btn-secondary text-center">
+                        ✏️ Edit Habit
+                    </a>
+                    <a href="{% url 'planner:habit_list' %}" 
+                       class="block w-full btn-secondary text-center">
+                        📋 All Habits
+                    </a>
+                    <a href="{% url 'planner:habit_dashboard' %}" 
+                       class="block w-full btn-secondary text-center">
+                        🏠 Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Entry Modal -->
+<div id="editEntryModal" class="fixed inset-0 z-50 hidden overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75" onclick="closeEditModal()"></div>
+        <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <form id="editEntryForm">
+                <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                    <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Edit Today's Entry</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input type="checkbox" id="editCompleted" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <label for="editCompleted" class="ml-2 block text-sm text-gray-900 dark:text-white">Completed</label>
+                        </div>
+                        
+                        <div>
+                            <label for="editCount" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                Count{% if habit.unit %} ({{ habit.unit }}){% endif %}
+                            </label>
+                            <input type="number" id="editCount" min="0" 
+                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                        </div>
+                        
+                        <div>
+                            <label for="editNotes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Notes</label>
+                            <textarea id="editNotes" rows="3" 
+                                      class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                                      placeholder="How did it go today?"></textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
+                    <button type="submit" class="btn-primary mr-3">Save Changes</button>
+                    <button type="button" onclick="closeEditModal()" class="btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Calendar data from Django
+const calendarData = {{ calendar_data|safe }};
+const habitId = {{ habit.id }};
+
+// CSRF token setup - Try multiple methods to get the token
+function getCSRFToken() {
+    // Try multiple ways to get CSRF token
+    let token = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+    if (!token) {
+        token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    }
+    if (!token) {
+        token = document.querySelector('input[name="csrfmiddlewaretoken"]')?.value;
+    }
+    if (!token) {
+        // Last resort - try to find it in any form on the page
+        const forms = document.querySelectorAll('form');
+        for (const form of forms) {
+            const input = form.querySelector('input[name="csrfmiddlewaretoken"]');
+            if (input) {
+                token = input.value;
+                break;
+            }
+        }
+    }
+    return token;
+}
+
+const csrfToken = getCSRFToken();
+
+// Simple Timeline Calendar
+function renderSimpleCalendar() {
+    const calendar = document.getElementById('habitCalendar');
+    
+    // Get today's date in local timezone (not UTC)
+    const todayDate = new Date();
+    const today = todayDate.getFullYear() + '-' + 
+                 String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                 String(todayDate.getDate()).padStart(2, '0');
+    
+    console.log('Today calculated as:', today); // Debug log
+    
+    // Clear calendar
+    calendar.innerHTML = '';
+    
+    // Create timeline of days (most recent first)
+    const sortedData = [...calendarData].reverse();
+    
+    sortedData.forEach((entry, index) => {
+        // Create date object from the entry date string without timezone issues
+        const dateParts = entry.date.split('-');
+        const entryDate = new Date(parseInt(dateParts[0]), parseInt(dateParts[1]) - 1, parseInt(dateParts[2]));
+        
+        const isToday = entry.date === today;
+        const dayName = entryDate.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayNum = entryDate.getDate();
+        const monthName = entryDate.toLocaleDateString('en-US', { month: 'short' });
+        
+        console.log('Processing date:', entry.date, 'isToday:', isToday); // Debug log
+        
+        // Create day card
+        const dayCard = document.createElement('div');
+        dayCard.className = `
+            flex-shrink-0 w-20 p-3 rounded-lg border cursor-pointer transition-all hover:shadow-md
+            ${
+                isToday ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' :
+                'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800'
+            }
+        `;
+        
+        // Determine status and colors
+        let statusIcon = '';
+        let statusColor = '';
+        let statusText = '';
+        
+        if (entry.completed) {
+            statusIcon = `
+                <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center mb-2">
+                    <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/>
+                    </svg>
+                </div>
+            `;
+            statusText = 'Done';
+            statusColor = 'text-green-600 dark:text-green-400';
+        } else if (entry.count > 0) {
+            statusIcon = `
+                <div class="w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center mb-2 text-white text-sm font-bold">
+                    ~
+                </div>
+            `;
+            statusText = `${entry.count}`;
+            statusColor = 'text-yellow-600 dark:text-yellow-400';
+        } else {
+            // Compare dates properly without timezone issues
+            const todayDateObj = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate());
+            const entryDateObj = new Date(entryDate.getFullYear(), entryDate.getMonth(), entryDate.getDate());
+            const isPastDate = entryDateObj < todayDateObj;
+            
+            // Check if this date has an actual database entry
+            const hasActualEntry = entry.has_entry === true;
+            
+            if (isPastDate && hasActualEntry) {
+                // Past date with database entry but not completed = actually missed
+                statusIcon = `
+                    <div class="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center mb-2">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </div>
+                `;
+                statusText = 'Miss';
+                statusColor = 'text-red-600 dark:text-red-400';
+            } else if (isPastDate && !hasActualEntry) {
+                // Past date with no database entry = no tracking data
+                statusIcon = `
+                    <div class="w-8 h-8 bg-gray-400 dark:bg-gray-500 rounded-full flex items-center justify-center mb-2">
+                        <span class="text-white text-xs font-bold">-</span>
+                    </div>
+                `;
+                statusText = 'No Data';
+                statusColor = 'text-gray-500 dark:text-gray-400';
+            } else {
+                // Future date or today without completion
+                statusIcon = `
+                    <div class="w-8 h-8 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mb-2">
+                        <span class="text-gray-500 dark:text-gray-400 text-xs">?</span>
+                    </div>
+                `;
+                statusText = 'TBD';
+                statusColor = 'text-gray-500 dark:text-gray-400';
+            }
+        }
+        
+        dayCard.innerHTML = `
+            <div class="text-center">
+                ${statusIcon}
+                <div class="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">${dayName}</div>
+                <div class="text-lg font-bold text-gray-900 dark:text-white mb-1">${dayNum}</div>
+                <div class="text-xs text-gray-500 dark:text-gray-400 mb-1">${monthName}</div>
+                <div class="text-xs font-medium ${statusColor}">${statusText}</div>
+                ${isToday ? '<div class="text-xs text-blue-600 dark:text-blue-400 font-bold mt-1">TODAY</div>' : ''}
+            </div>
+        `;
+        
+        // Add click handler
+        if (entry.date <= today) {
+            dayCard.onclick = () => editDateEntry(entry.date);
+        }
+        
+        // Add tooltip for notes
+        if (entry.notes) {
+            dayCard.title = entry.notes;
+        }
+        
+        calendar.appendChild(dayCard);
+    });
+    
+    // Auto-scroll to today
+    setTimeout(() => {
+        const todayCard = calendar.querySelector('.border-blue-500');
+        if (todayCard) {
+            todayCard.scrollIntoView({ behavior: 'smooth', inline: 'center' });
+        }
+    }, 100);
+}
+
+// Toggle today's completion
+async function toggleToday() {
+    console.log('toggleToday called for habit ID:', habitId);
+    
+    // Get fresh CSRF token
+    const token = getCSRFToken();
+    console.log('CSRF token found:', !!token);
+    
+    if (!token) {
+        console.error('CSRF token not found');
+        alert('Security token not found. Please refresh the page.');
+        return;
+    }
+    
+    try {
+        const url = `/api/habits/${habitId}/toggle/`;
+        console.log('Making request to:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': token,
+                'Content-Type': 'application/json',
+            },
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Response error text:', errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (data.success) {
+            console.log('Habit toggled successfully, reloading page');
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    } catch (error) {
+        console.error('Error toggling habit:', error);
+        alert(`Error updating habit: ${error.message}`);
+    }
+}
+
+// Mark today as done
+function markToday() {
+    toggleToday();
+}
+
+// Edit today's entry
+function editTodayEntry() {
+    const modal = document.getElementById('editEntryModal');
+    const form = document.getElementById('editEntryForm');
+    
+    // Populate current values
+    {% if today_entry %}
+        document.getElementById('editCompleted').checked = {{ today_entry.is_completed|yesno:"true,false" }};
+        document.getElementById('editCount').value = {{ today_entry.count }};
+        document.getElementById('editNotes').value = "{{ today_entry.notes|default:'' }}";
+    {% else %}
+        document.getElementById('editCompleted').checked = false;
+        document.getElementById('editCount').value = {{ habit.target_count }};
+        document.getElementById('editNotes').value = "";
+    {% endif %}
+    
+    modal.classList.remove('hidden');
+}
+
+// Close edit modal
+function closeEditModal() {
+    document.getElementById('editEntryModal').classList.add('hidden');
+}
+
+// Handle edit form submission
+document.getElementById('editEntryForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    console.log('Edit form submitted');
+    
+    // Get fresh CSRF token
+    const token = getCSRFToken();
+    console.log('CSRF token found:', !!token);
+    
+    if (!token) {
+        console.error('CSRF token not found');
+        alert('Security token not found. Please refresh the page.');
+        return;
+    }
+    
+    const formData = new FormData();
+    const isCompleted = document.getElementById('editCompleted').checked;
+    const count = document.getElementById('editCount').value;
+    const notes = document.getElementById('editNotes').value;
+    
+    formData.append('is_completed', isCompleted);
+    formData.append('count', count);
+    formData.append('notes', notes);
+    
+    // Use the same date calculation as the calendar
+    const todayDate = new Date();
+    const today = todayDate.getFullYear() + '-' + 
+                 String(todayDate.getMonth() + 1).padStart(2, '0') + '-' + 
+                 String(todayDate.getDate()).padStart(2, '0');
+    formData.append('date', today);
+    
+    console.log('Form data:', {
+        is_completed: isCompleted,
+        count: count,
+        notes: notes,
+        date: today
+    });
+    
+    try {
+        const url = `/api/habits/${habitId}/update-entry/`;
+        console.log('Making request to:', url);
+        
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': token,
+            },
+            body: formData
+        });
+        
+        console.log('Response status:', response.status);
+        console.log('Response ok:', response.ok);
+        
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Response error text:', errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log('Response data:', data);
+        
+        if (data.success) {
+            console.log('Entry updated successfully, closing modal and reloading');
+            closeEditModal();
+            location.reload();
+        } else {
+            throw new Error(data.error || 'Unknown error occurred');
+        }
+    } catch (error) {
+        console.error('Error updating entry:', error);
+        alert(`Error updating entry: ${error.message}`);
+    }
+});
+
+// Edit entry for specific date
+function editDateEntry(date) {
+    // For now, just log the date - you could implement a more complex modal for editing past entries
+    console.log('Edit entry for date:', date);
+}
+
+// Initialize calendar on page load
+document.addEventListener('DOMContentLoaded', function() {
+    renderSimpleCalendar();
+});
+</script>
+{% endblock %}

@@ -27,3 +27,10 @@ def div(value, arg):
         return float(value) / float(arg)
     except (ValueError, TypeError):
         return 0
+
+@register.filter
+def get_item(dictionary, key):
+    """Gets an item from a dictionary using the key."""
+    if hasattr(dictionary, 'get'):
+        return dictionary.get(key)
+    return None
