@@ -110,8 +110,8 @@ class SchedulingEngine:
         )
         
         for task in scheduled_tasks:
-            if task.is_locked:
-                slots = self._remove_conflicts(slots, task.start_time, task.end_time)
+            # Remove conflicts with ALL scheduled tasks (both locked and unlocked)
+            slots = self._remove_conflicts(slots, task.start_time, task.end_time)
 
         return sorted(slots, key=lambda x: x['start'])
 
@@ -257,8 +257,8 @@ class SchedulingEngine:
         time_until_deadline = (task.deadline - now).total_seconds() / (24 * 3600)  # days
         urgency_score = max(0, time_until_deadline)  # Closer deadlines = lower score
         
-        # Priority score (1=high priority, 4=low priority, so lower is better)
-        priority_score = task.priority
+        # Priority score (1=low priority, 4=high priority, so we invert for sorting)
+        priority_score = 5 - task.priority  # Convert 1-4 to 4-1 for sorting (lower = higher priority)
         
         # Size score - prefer to schedule smaller tasks first for better scheduling efficiency
         size_score = float(task.estimated_hours)

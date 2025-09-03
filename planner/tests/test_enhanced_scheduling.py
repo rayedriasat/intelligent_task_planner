@@ -64,9 +64,9 @@ class EnhancedSchedulingEngineTestCase(TestCase):
         mock_timezone_now.return_value = self.mock_now
         
         # Create tasks with different urgencies and priorities
-        urgent_task = self.create_task(title="Urgent Task", priority=1, deadline_days_from_now=1)  # Due tomorrow
-        high_priority_task = self.create_task(title="High Priority", priority=1, deadline_days_from_now=7)  # Due in a week
-        low_priority_task = self.create_task(title="Low Priority", priority=4, deadline_days_from_now=2)  # Due in 2 days
+        urgent_task = self.create_task(title="Urgent Task", priority=4, deadline_days_from_now=1)  # Due tomorrow
+        high_priority_task = self.create_task(title="High Priority", priority=3, deadline_days_from_now=7)  # Due in a week
+        low_priority_task = self.create_task(title="Low Priority", priority=1, deadline_days_from_now=2)  # Due in 2 days
         
         # Test priority scoring
         urgent_score = self.engine._calculate_task_priority_score(urgent_task)
@@ -158,9 +158,9 @@ class EnhancedSchedulingEngineTestCase(TestCase):
         
         # Create overload scenario
         tasks = [
-            self.create_task(title="High Priority", estimated_hours=2.0, priority=1, deadline_days_from_now=1),
+            self.create_task(title="Low Priority", estimated_hours=2.0, priority=1, deadline_days_from_now=1),
             self.create_task(title="Medium Priority", estimated_hours=2.0, priority=2, deadline_days_from_now=3),
-            self.create_task(title="Low Priority", estimated_hours=2.0, priority=4, deadline_days_from_now=7),
+            self.create_task(title="Urgent Priority", estimated_hours=2.0, priority=4, deadline_days_from_now=7),
         ]
         
         # Limited time

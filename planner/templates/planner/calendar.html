@@ -363,7 +363,7 @@
                 <div class="flex space-x-2">
                     <button @click="scheduleAllUrgent()" 
                             class="flex-1 text-xs bg-red-100 hover:bg-red-200 text-red-700 px-3 py-2 rounded transition-colors">
-                        Schedule Urgent
+                        Schedule Due Soon
                     </button>
                     <button @click="scheduleByPriority()" 
                             class="flex-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-2 rounded transition-colors">
@@ -1149,7 +1149,7 @@ function calendarApp() {
                     priority: {{ task.priority }},
                     deadline: "{{ task.deadline|date:'Y-m-d' }}",
                     created_at: "{{ task.created_at|date:'Y-m-d' }}",
-                    is_urgent: {% if task.deadline and task.deadline|timeuntil|cut:' ' < '2 days' %}true{% else %}false{% endif %}
+                    is_urgent: {{ task.is_urgent_for_js|yesno:"true,false" }}
                 },
                 {% empty %}
                 // NO TASKS FOUND IN TEMPLATE
@@ -1246,11 +1246,11 @@ function calendarApp() {
         scheduleAllUrgent() {
             const urgentTasks = this.unscheduledTasks.filter(task => task.is_urgent);
             if (urgentTasks.length === 0) {
-                this.showToast('No urgent tasks to schedule', 'info');
+                this.showToast('No tasks due soon to schedule', 'info');
                 return;
             }
             
-            if (!confirm(`Schedule ${urgentTasks.length} urgent tasks automatically?`)) return;
+            if (!confirm(`Schedule ${urgentTasks.length} tasks due soon automatically?`)) return;
             
             fetch('{% url "planner:schedule_urgent_tasks" %}', {
                 method: 'POST',
@@ -1262,7 +1262,7 @@ function calendarApp() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    this.showToast(`${data.scheduled_count} urgent tasks scheduled!`, 'success');
+                    this.showToast(`${data.scheduled_count} tasks due soon scheduled!`, 'success');
                     setTimeout(() => window.location.reload(), 1000);
                 } else {
                     this.showToast('Error: ' + (data.error || 'Unknown error'), 'error');
@@ -1679,7 +1679,7 @@ function calendarApp() {
             formData.append('description', 'Urgent task created via sacrifice mode');
             formData.append('estimated_hours', estimatedHours);
             formData.append('min_block_size', '0.5');
-            formData.append('priority', '1');
+            formData.append('priority', '4');
             formData.append('deadline', deadline);
             formData.append('status', 'todo');
             

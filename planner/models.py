@@ -88,6 +88,14 @@ class Task(models.Model):
     def calendar_width(self):
         """Calculate width for calendar task block."""
         return "calc((100% - 5rem) / 7 - 4px)"
+    
+    @property
+    def is_urgent_for_js(self):
+        """Check if task is urgent (due within 2 days) - for frontend JavaScript."""
+        if not self.deadline:
+            return False
+        urgent_deadline = timezone.now() + timedelta(days=2)
+        return self.deadline <= urgent_deadline
 
 
 class TimeBlock(models.Model):

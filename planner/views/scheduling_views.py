@@ -230,8 +230,8 @@ def auto_schedule_all_tasks(request):
                 'scheduled_count': 0
             })
         
-        # Use the scheduling engine to schedule all tasks
-        result = engine.calculate_schedule_with_analysis()
+        # Use the scheduling engine to schedule only unscheduled tasks
+        result = engine.calculate_schedule_with_analysis(list(unscheduled_tasks))
         
         scheduled_count = len(result['scheduled_tasks'])
         unscheduled_count = len(result['unscheduled_tasks'])
@@ -275,9 +275,13 @@ def quick_schedule_task(request):
             scheduled_task = scheduled_tasks[0]
             scheduled_task.save()
             
+            # Convert to local timezone for display
+            local_start_time = timezone.localtime(scheduled_task.start_time)
+            local_end_time = timezone.localtime(scheduled_task.end_time)
+            
             return JsonResponse({
                 'success': True,
-                'scheduled_time': scheduled_task.start_time.strftime('%b %d at %I:%M %p'),
+                'scheduled_time': f"{local_start_time.strftime('%b %d at %I:%M %p')} - {local_end_time.strftime('%I:%M %p')}",
                 'task_title': scheduled_task.title
             })
         else:
@@ -341,7 +345,7 @@ def create_urgent_task(request):
         if form.is_valid():
             task = form.save(commit=False)
             task.user = request.user
-            task.priority = 1  # Force high priority for urgent tasks
+            task.priority = 4  # Force urgent priority for urgent tasks
             task.save()
             
             # Check if there's available time for this task

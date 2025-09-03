@@ -40,6 +40,8 @@ And you need to add the .env file I sent in the Group in the project root.
 9. All done, now lets start the server:
 python manage.py runserver
 
+9.1 python manage.py setup_google_oauth
+9.2 python manage.py setup_stripe
 
 10 optional: If changing any CSS styles or html designs:
 run tailwind build command to apply css changes:

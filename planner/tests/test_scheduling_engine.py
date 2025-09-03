@@ -159,10 +159,10 @@ class SchedulingEngineTestCase(TestCase):
         self.assertEqual(len(scheduled_tasks), 2)
         self.assertEqual(len(unscheduled_tasks), 1)
         
-        # High priority task should be scheduled first
-        self.assertEqual(scheduled_tasks[0].title, "Low Priority")  # Priority 1 comes first (lower number = higher priority)
-        self.assertEqual(scheduled_tasks[1].title, "Medium Priority")  # Priority 2 comes second
-        self.assertEqual(unscheduled_tasks[0].title, "High Priority")  # Priority 4 (lowest) doesn't fit
+        # High priority task should be scheduled first (priority 4 = Urgent is highest priority)
+        self.assertEqual(scheduled_tasks[0].title, "High Priority")  # Priority 4 (Urgent) comes first
+        self.assertEqual(scheduled_tasks[1].title, "Medium Priority")  # Priority 2 (Medium) comes second
+        self.assertEqual(unscheduled_tasks[0].title, "Low Priority")  # Priority 1 (Low) doesn't fit
 
     @patch('django.utils.timezone.now')
     def test_calculate_schedule_overload_scenario(self, mock_timezone_now):

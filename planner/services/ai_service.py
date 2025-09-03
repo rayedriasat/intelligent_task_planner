@@ -142,7 +142,7 @@ AVAILABLE TIME BLOCKS:
 {json.dumps(time_blocks, indent=2)}
 
 INSTRUCTIONS:
-1. Prioritize tasks based on deadline urgency and priority level (1=highest, 4=lowest)
+1. Prioritize tasks based on deadline urgency and priority level (1=Low, 2=Medium, 3=High, 4=Urgent)
 2. Respect task estimated hours and fit them within available time blocks
 3. Avoid scheduling conflicts with existing scheduled tasks
 4. Provide confidence scores (0-1) for each suggestion
@@ -630,7 +630,7 @@ Provide ONLY valid JSON response, no additional text."""
         
         # Sort tasks by priority and deadline
         sorted_tasks = sorted(tasks, key=lambda t: (
-            t.priority,  # Lower priority number = higher priority
+            -t.priority,  # Higher priority number = higher priority (4=Urgent first, 1=Low last)
             t.deadline if t.deadline else timezone.now() + timedelta(days=365),  # Tasks without deadline go last
             t.estimated_hours  # Shorter tasks first for same priority/deadline
         ))
@@ -659,7 +659,7 @@ Provide ONLY valid JSON response, no additional text."""
                     
                     # Calculate confidence based on how well it fits
                     time_fit_ratio = task_duration.total_seconds() / block_duration.total_seconds()
-                    priority_score = (5 - task.priority) / 4.0  # Convert 1-4 priority to 0.25-1.0 score
+                    priority_score = task.priority / 4.0  # Convert 1-4 priority to 0.25-1.0 score (higher number = higher score)
                     confidence = min(0.9, (priority_score * 0.6) + (time_fit_ratio * 0.4))
                     
                     suggestions.append(AIScheduleSuggestion(
