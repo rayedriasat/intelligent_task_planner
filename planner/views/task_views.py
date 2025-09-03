@@ -198,6 +198,10 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
     """Delete a task."""
     model = Task
     template_name = 'planner/task_confirm_delete.html'
+    success_url = reverse_lazy('planner:kanban')
+
+    def get_queryset(self):
+        return Task.objects.filter(user=self.request.user)
 
 
 class ProfileView(LoginRequiredMixin, TemplateView):
