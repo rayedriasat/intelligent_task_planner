@@ -74,14 +74,17 @@ class SchedulingEngine:
                 # Generate slots for the week based on day_of_week
                 if block.day_of_week is not None:
                     slot_date = week_start + timedelta(days=block.day_of_week)
-                    slot_start = timezone.make_aware(datetime.combine(
-                        slot_date,
-                        block.start_time.time()
-                    ))
-                    slot_end = timezone.make_aware(datetime.combine(
-                        slot_date,
-                        block.end_time.time()
-                    ))
+                    
+                    # Convert the stored UTC times to local timezone first, then extract time components
+                    local_start = timezone.localtime(block.start_time)
+                    local_end = timezone.localtime(block.end_time)
+                    
+                    start_time_local = local_start.time()
+                    end_time_local = local_end.time()
+                    
+                    # Create datetime objects for the target date in local timezone
+                    slot_start = timezone.make_aware(datetime.combine(slot_date, start_time_local))
+                    slot_end = timezone.make_aware(datetime.combine(slot_date, end_time_local))
                     
                     if slot_end > now:  # Only if the slot ends in the future
                         # If the slot starts in the past, adjust start time to now
@@ -102,7 +105,7 @@ class SchedulingEngine:
                         'block_id': block.id
                     })
 
-        # Remove conflicts with existing scheduled tasks
+        # Remove conflicts with existing scheduled tasks (always get fresh data)
         scheduled_tasks = self.user.tasks.filter(
             start_time__isnull=False,
             end_time__isnull=False,
@@ -114,6 +117,62 @@ class SchedulingEngine:
             slots = self._remove_conflicts(slots, task.start_time, task.end_time)
 
         return sorted(slots, key=lambda x: x['start'])
+
+    def _refresh_available_slots(self, time_blocks: List[TimeBlock]) -> List[dict]:
+        """Refresh available slots with the most current scheduled tasks to prevent overlaps."""
+        return self._generate_available_slots(time_blocks)
+    
+    def schedule_single_task_safely(self, task: Task, time_blocks: List[TimeBlock] = None) -> bool:
+        """
+        Safely schedule a single task, ensuring no overlaps with existing scheduled tasks.
+        Returns True if successfully scheduled, False otherwise.
+        """
+        if time_blocks is None:
+            time_blocks = list(self.user.time_blocks.all())
+        
+        # Get fresh available slots
+        available_slots = self._refresh_available_slots(time_blocks)
+        
+        # Find suitable slot
+        scheduled_slot = self._find_suitable_slot(task, available_slots)
+        
+        if scheduled_slot:
+            # Double-check for conflicts before scheduling
+            if self._check_for_conflicts(scheduled_slot['start'], scheduled_slot['end'], exclude_task_id=task.id):
+                # Conflict detected, refresh and try again
+                available_slots = self._refresh_available_slots(time_blocks)
+                scheduled_slot = self._find_suitable_slot(task, available_slots)
+                
+                if not scheduled_slot or self._check_for_conflicts(scheduled_slot['start'], scheduled_slot['end'], exclude_task_id=task.id):
+                    return False
+            
+            # Schedule the task
+            task.start_time = scheduled_slot['start']
+            task.end_time = scheduled_slot['end']
+            return True
+        
+        return False
+    
+    def _check_for_conflicts(self, start_time: datetime, end_time: datetime, exclude_task_id: int = None) -> bool:
+        """
+        Check if the given time range conflicts with any existing scheduled tasks.
+        Returns True if there's a conflict, False otherwise.
+        """
+        conflicting_tasks = self.user.tasks.filter(
+            start_time__isnull=False,
+            end_time__isnull=False,
+            status__in=['todo', 'in_progress']
+        )
+        
+        if exclude_task_id:
+            conflicting_tasks = conflicting_tasks.exclude(id=exclude_task_id)
+        
+        for existing_task in conflicting_tasks:
+            # Check for overlap: two time ranges overlap if one starts before the other ends
+            if (start_time < existing_task.end_time and end_time > existing_task.start_time):
+                return True
+        
+        return False
 
     def _find_suitable_slot(self, task: Task, available_slots: List[dict]) -> Optional[dict]:
         """Find a suitable time slot for the given task."""

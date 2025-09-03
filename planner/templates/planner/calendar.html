@@ -848,7 +848,7 @@
                                             <div class="flex items-center space-x-2 ml-4">
                                                 <input type="checkbox" 
                                                        :id="'suggestion-' + suggestion.task_id"
-                                                       :value="suggestion.task_id"
+                                                       :value="suggestion.task_id + '_' + suggestion.suggested_start_time"
                                                        x-model="selectedSuggestions"
                                                        class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
                                                 <label :for="'suggestion-' + suggestion.task_id" class="text-sm text-gray-600 dark:text-gray-400">Accept</label>
@@ -2040,6 +2040,8 @@ function calendarApp() {
         },
         
         applyAISuggestions() {
+            console.log('DEBUG: applyAISuggestions called with selectedSuggestions:', this.selectedSuggestions);
+            
             if (this.selectedSuggestions.length === 0) {
                 this.showToast('Please select at least one suggestion to apply', 'error');
                 return;
@@ -2047,9 +2049,11 @@ function calendarApp() {
             
             const formData = new FormData();
             this.selectedSuggestions.forEach(suggestionId => {
+                console.log('DEBUG: Adding suggestion ID to form:', suggestionId);
                 formData.append('selected_suggestions', suggestionId);
             });
             
+            console.log('DEBUG: Making request to apply AI suggestions...');
             fetch('{% url "planner:apply_ai_suggestions" %}', {
                 method: 'POST',
                 headers: {
@@ -2057,8 +2061,12 @@ function calendarApp() {
                 },
                 body: formData
             })
-            .then(response => response.json())
+            .then(response => {
+                console.log('DEBUG: Apply AI suggestions response received:', response.status);
+                return response.json();
+            })
             .then(data => {
+                console.log('DEBUG: Apply AI suggestions data:', data);
                 if (data.success) {
                     this.showToast(`Applied ${data.applied_count} AI suggestions successfully!`, 'success');
                     this.closeAISuggestions();
@@ -2068,7 +2076,7 @@ function calendarApp() {
                 }
             })
             .catch(error => {
-                console.error('Error applying AI suggestions:', error);
+                console.error('DEBUG: Error applying AI suggestions:', error);
                 this.showToast('Network error while applying suggestions', 'error');
             });
         },

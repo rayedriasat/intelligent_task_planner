@@ -268,21 +268,20 @@ def quick_schedule_task(request):
         
         engine = SchedulingEngine(request.user)
         
-        # Try to schedule just this one task
-        scheduled_tasks, unscheduled_tasks = engine.calculate_schedule([task])
+        # Use the new safe scheduling method to prevent overlaps
+        success = engine.schedule_single_task_safely(task)
         
-        if scheduled_tasks:
-            scheduled_task = scheduled_tasks[0]
-            scheduled_task.save()
+        if success:
+            task.save()
             
             # Convert to local timezone for display
-            local_start_time = timezone.localtime(scheduled_task.start_time)
-            local_end_time = timezone.localtime(scheduled_task.end_time)
+            local_start_time = timezone.localtime(task.start_time)
+            local_end_time = timezone.localtime(task.end_time)
             
             return JsonResponse({
                 'success': True,
                 'scheduled_time': f"{local_start_time.strftime('%b %d at %I:%M %p')} - {local_end_time.strftime('%I:%M %p')}",
-                'task_title': scheduled_task.title
+                'task_title': task.title
             })
         else:
             return JsonResponse({

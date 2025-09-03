@@ -105,8 +105,10 @@ def apply_ai_suggestions(request):
     """Apply selected AI scheduling suggestions to actually schedule tasks."""
     try:
         selected_suggestions = request.POST.getlist('selected_suggestions')
+        logger.info(f"DEBUG: Received selected_suggestions: {selected_suggestions}")
         
         if not selected_suggestions:
+            logger.warning("DEBUG: No suggestions selected")
             return JsonResponse({
                 'success': False,
                 'error': 'No suggestions selected'
@@ -136,10 +138,13 @@ def apply_ai_suggestions(request):
         ai_response = get_ai_scheduling_suggestions_sync(unscheduled_tasks, available_blocks)
         
         if not ai_response.success:
+            logger.error(f"DEBUG: Failed to get fresh AI suggestions: {ai_response.error_message}")
             return JsonResponse({
                 'success': False,
                 'error': 'Unable to retrieve current AI suggestions'
             })
+            
+        logger.info(f"DEBUG: Got {len(ai_response.suggestions)} fresh AI suggestions")
         
         # Apply selected suggestions
         applied_count = 0
@@ -148,25 +153,42 @@ def apply_ai_suggestions(request):
             for suggestion in ai_response.suggestions:
                 # Check if this suggestion was selected
                 suggestion_id = f"{suggestion.task_id}_{suggestion.suggested_start_time}"
+                logger.info(f"DEBUG: Checking suggestion ID: {suggestion_id}")
+                logger.info(f"DEBUG: Selected suggestions: {selected_suggestions}")
+                
                 if suggestion_id in selected_suggestions:
+                    logger.info(f"DEBUG: Processing suggestion for task {suggestion.task_id}")
                     try:
                         # Get the task
                         task = request.user.tasks.get(id=suggestion.task_id)
+                        logger.info(f"DEBUG: Found task: {task.title}")
                         
                         # Parse suggested times
                         start_time = timezone.datetime.fromisoformat(suggestion.suggested_start_time.replace('Z', '+00:00'))
                         end_time = timezone.datetime.fromisoformat(suggestion.suggested_end_time.replace('Z', '+00:00'))
+                        logger.info(f"DEBUG: Parsed times - start: {start_time}, end: {end_time}")
+                        
+                        # Check for conflicts before applying
+                        from ..services.scheduling_engine import SchedulingEngine
+                        engine = SchedulingEngine(request.user)
+                        
+                        if engine._check_for_conflicts(start_time, end_time, exclude_task_id=task.id):
+                            logger.warning(f"DEBUG: Conflict detected for task {task.title}, skipping this suggestion")
+                            continue
                         
                         # Apply the scheduling
                         task.start_time = start_time
                         task.end_time = end_time
                         task.save()
+                        logger.info(f"DEBUG: Successfully scheduled task {task.title}")
                         
                         applied_count += 1
                         
                     except (Task.DoesNotExist, ValueError) as e:
                         logger.warning(f"Failed to apply suggestion for task {suggestion.task_id}: {e}")
                         continue
+                else:
+                    logger.info(f"DEBUG: Suggestion {suggestion_id} not in selected suggestions")
         
         # Send notification about applied AI suggestions
         from ..services.notification_service import NotificationService
@@ -175,6 +197,7 @@ def apply_ai_suggestions(request):
             f"AI suggestions applied! {applied_count} tasks have been scheduled based on AI recommendations."
         )
         
+        logger.info(f"DEBUG: Successfully applied {applied_count} AI suggestions")
         return JsonResponse({
             'success': True,
             'applied_count': applied_count,
