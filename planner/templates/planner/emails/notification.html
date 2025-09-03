@@ -101,7 +101,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <div class="logo">📅 TaskFlow</div>
+            <div class="logo">📅 KajBuzz</div>
             <span class="notification-type {{ notification.notification_type }}">
                 {{ notification.get_notification_type_display }}
             </span>
@@ -128,12 +128,12 @@
             {% endif %}
 
             <a href="{% url 'planner:calendar' %}" class="cta-button">
-                View in TaskFlow →
+                View in KajBuzz →
             </a>
         </div>
 
         <div class="footer">
-            <p>You're receiving this notification because you have task reminders enabled in your TaskFlow account.</p>
+            <p>You're receiving this notification because you have task reminders enabled in your KajBuzz account.</p>
             <a href="{% url 'account_email' %}" class="unsubscribe">Manage notification preferences</a>
         </div>
     </div>

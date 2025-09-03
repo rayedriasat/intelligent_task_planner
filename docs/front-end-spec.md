@@ -40,7 +40,7 @@ graph TD
     B -- Yes --> D["Main App Shell (with Nav)"];
     C --> D;
 
-    subgraph "TaskFlow App"
+    subgraph "KajBuzz App"
       D -- Default View --> E["My Tasks (Kanban View)"];
       D --- F[Weekly Calendar View];
       D --- G[Pomodoro Timer View];

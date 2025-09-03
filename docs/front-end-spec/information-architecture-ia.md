@@ -11,7 +11,7 @@ graph TD
     B -- Yes --> D["Main App Shell (with Nav)"];
     C --> D;
 
-    subgraph "TaskFlow App"
+    subgraph "KajBuzz App"
       D -- Default View --> E["My Tasks (Kanban View)"];
       D --- F[Weekly Calendar View];
       D --- G[Pomodoro Timer View];
@@ -36,4 +36,4 @@ This definitive version includes a crucial "My Tasks" link to serve as the user'
         *   An optional mini Pomodoro timer widget.
 
 *   **Top Header / User Navigation:** A minimal top header containing the brand, user profile menu (Settings/Logout), and theme toggle.
-
+

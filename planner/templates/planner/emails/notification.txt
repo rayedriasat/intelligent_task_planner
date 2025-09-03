@@ -1,4 +1,4 @@
-📅 TASKFLOW - {{ notification.get_notification_type_display|upper }}
+📅 KajBuzz - {{ notification.get_notification_type_display|upper }}
 
 {{ notification.title }}
 
@@ -18,5 +18,5 @@ TASK DETAILS:
 View your full schedule at: {{ request.build_absolute_uri }}{% url 'planner:calendar' %}
 
 ---
-You're receiving this notification because you have task reminders enabled in your TaskFlow account.
+You're receiving this notification because you have task reminders enabled in your KajBuzz account.
 To manage your notification preferences, visit: {{ request.build_absolute_uri }}{% url 'account_email' %}

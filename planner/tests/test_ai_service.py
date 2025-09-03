@@ -8,7 +8,7 @@ Tests cover all aspects of the AI service including:
 - Response parsing
 - Edge cases
 
-Author: TaskFlow Team
+Author: KajBuzz Team
 """
 
 import json

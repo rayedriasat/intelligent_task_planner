@@ -4,7 +4,7 @@ OpenRouter AI Integration Service
 This service provides AI-powered scheduling suggestions by integrating with the OpenRouter API.
 It takes user tasks and time blocks, formats them for the AI, and processes the response.
 
-Author: TaskFlow Team
+Author: KajBuzz Team
 Version: 1.0
 """
 
@@ -177,8 +177,8 @@ Provide ONLY valid JSON response, no additional text."""
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "HTTP-Referer": "https://taskflow.local",
-            "X-Title": "TaskFlow - Intelligent Task Planner"
+            "HTTP-Referer": "https://KajBuzz.local",
+            "X-Title": "KajBuzz - Intelligent Task Planner"
         }
         
         payload = {
