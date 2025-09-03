@@ -8,6 +8,7 @@ urlpatterns = [
     # Dashboard and main views
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     path('onboarding/', views.OnboardingView.as_view(), name='onboarding'),
+    path('profile/', views.ProfileView.as_view(), name='profile'),
     
     # Task management
     path('tasks/', views.TaskListView.as_view(), name='task_list'),

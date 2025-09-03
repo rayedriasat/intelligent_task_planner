@@ -198,6 +198,47 @@ class TaskDeleteView(LoginRequiredMixin, DeleteView):
     """Delete a task."""
     model = Task
     template_name = 'planner/task_confirm_delete.html'
+
+
+class ProfileView(LoginRequiredMixin, TemplateView):
+    """User profile view showing email and connected accounts."""
+    template_name = 'planner/profile.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        
+        # Get Google account information
+        from allauth.socialaccount.models import SocialAccount
+        google_account = SocialAccount.objects.filter(
+            user=self.request.user, 
+            provider='google'
+        ).first()
+        
+        # Get Google Calendar integration
+        from ..models import GoogleCalendarIntegration
+        try:
+            google_integration = GoogleCalendarIntegration.objects.get(
+                user=self.request.user
+            )
+        except GoogleCalendarIntegration.DoesNotExist:
+            google_integration = None
+        
+        # Get Canvas integration
+        from ..models import CanvasIntegration
+        try:
+            canvas_integration = CanvasIntegration.objects.get(
+                user=self.request.user
+            )
+        except CanvasIntegration.DoesNotExist:
+            canvas_integration = None
+        
+        context.update({
+            'google_account': google_account,
+            'google_integration': google_integration,
+            'canvas_integration': canvas_integration,
+        })
+        
+        return context
     success_url = reverse_lazy('planner:kanban')
 
     def get_queryset(self):
