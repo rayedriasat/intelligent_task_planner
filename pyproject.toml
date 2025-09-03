@@ -23,6 +23,7 @@ dependencies = [
     "pyjwt>=2.10.1",
     "cryptography>=45.0.6",
     "stripe>=12.5.0",
+    "reportlab>=4.4.3",
 ]
 requires-python = ">=3.13"
 

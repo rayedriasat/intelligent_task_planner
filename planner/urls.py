@@ -1,6 +1,7 @@
 from django.urls import path
 from . import views
 from .manual_scheduling import manual_schedule_task, create_and_schedule_task, unschedule_task as manual_unschedule_task
+from .views.pdf_views import SchedulePdfFormView, SchedulePdfGenerateView
 
 app_name = 'planner'
 
@@ -94,4 +95,8 @@ urlpatterns = [
     path('canvas/status/', views.canvas_sync_status, name='canvas_sync_status'),
     path('canvas/toggle/', views.toggle_canvas_integration, name='toggle_canvas_integration'),
     path('canvas/announcements/<int:announcement_id>/to-task/', views.canvas_announcement_to_task, name='canvas_announcement_to_task'),
+    
+    # PDF Export
+    path('schedule/pdf/', SchedulePdfFormView.as_view(), name='schedule_pdf_form'),
+    path('schedule/pdf/generate/<str:start_date>/<str:end_date>/', SchedulePdfGenerateView.as_view(), name='schedule_pdf_generate'),
 ]

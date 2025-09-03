@@ -153,3 +153,48 @@ class TimeBlockForm(forms.ModelForm):
             raise forms.ValidationError("Day of week is required for recurring time blocks.")
 
         return cleaned_data
+
+
+class PdfScheduleForm(forms.Form):
+    """Form for selecting date range for PDF schedule export"""
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+        }),
+        help_text="Select the start date for your schedule"
+    )
+    
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={
+            'type': 'date',
+            'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+        }),
+        help_text="Select the end date for your schedule"
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Set default to current week
+        today = timezone.now().date()
+        # Calculate start of current week (Monday)
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+        
+        self.fields['start_date'].initial = start_of_week
+        self.fields['end_date'].initial = end_of_week
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        start_date = cleaned_data.get('start_date')
+        end_date = cleaned_data.get('end_date')
+        
+        if start_date and end_date:
+            if start_date > end_date:
+                raise forms.ValidationError("Start date must be before or equal to end date.")
+            
+            # Limit to maximum of 4 weeks for performance
+            if (end_date - start_date).days > 28:
+                raise forms.ValidationError("Date range cannot exceed 4 weeks.")
+        
+        return cleaned_data
