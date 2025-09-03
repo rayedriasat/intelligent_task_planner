@@ -8,32 +8,11 @@
 <!-- Ensure CSRF token is available for JavaScript -->
 <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
 
-<!-- DEBUG: Show data being passed to template -->
-<div style="background: yellow; padding: 10px; margin: 10px; color: black; border: 2px solid red;">
-    <strong>DEBUG INFO:</strong><br>
-    Current user: {{ user.username }}<br>
-    Unscheduled tasks count: {{ unscheduled_tasks.count }}<br>
-    Tasks: 
-    {% for task in unscheduled_tasks %}
-        {{ task.title }} ({{ task.estimated_hours }}h, P{{ task.priority }}){% if not forloop.last %}, {% endif %}
-    {% empty %}
-        NONE FOUND
-    {% endfor %}
-</div>
+
 
 <div class="h-full flex flex-col p-6" x-data="calendarApp()" x-init="init()">
     
-    <!-- DEBUG: Alpine.js reactive test (inside component scope) -->
-    <div style="background: lightblue; padding: 10px; margin: 10px; color: black; border: 2px solid blue;">
-        <strong>ALPINE.JS TEST:</strong><br>
-        Alpine working: <span x-text="'YES - Alpine.js is active!'">NO - Alpine.js not working</span><br>
-        Unscheduled tasks loaded: <span x-text="unscheduledTasks.length">0</span><br>
-        Filtered tasks: <span x-text="filteredTasks.length">0</span><br>
-        <button @click="alert('Alpine button works!')" style="background: green; color: white; padding: 5px;">Test Button</button>
-        <br><br>
-        <button @click="reoptimizeSchedule()" style="background: blue; color: white; padding: 5px;">Test Re-optimize</button>
-        <button @click="getAISuggestions()" style="background: purple; color: white; padding: 5px;">Test AI</button>
-    </div>
+
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div>
@@ -86,11 +65,7 @@
                 <span x-text="aiLoading ? 'Getting AI Suggestions...' : 'Get AI Suggestion'"></span>
             </button>
             
-            <!-- Test Button (for debugging) -->
-            <button @click="console.log('TEST: Simple Alpine.js click works!'); alert('Alpine.js is working!')" 
-                    class="bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-medium transition-colors">
-                TEST
-            </button>
+
             
             <!-- Add Urgent Task Button -->
             <button @click="promptUrgentTask()" 
@@ -189,7 +164,7 @@
                              data-date="{{ day.date|date:'Y-m-d' }}"
                              @dragover.prevent="handleDragOver($event)"
                              @drop="handleDrop($event, '{{ day.date|date:'Y-m-d' }}', {{ hour_data.hour }})"
-                             @click="console.log('Clicked!'); openSchedulingModal('{{ day.date|date:'Y-m-d' }}', {{ hour_data.hour }})"
+                             @click="openSchedulingModal('{{ day.date|date:'Y-m-d' }}', {{ hour_data.hour }})"
                              class="cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                              style="position: relative; z-index: 1;">
                              <!-- Visual indicator for clickable area -->
@@ -235,8 +210,7 @@
                         <div x-show="shouldShowCurrentTimeIndicator()" 
                              x-ref="timeIndicator"
                              class="current-time-indicator-day"
-                             :style="'top: ' + getCurrentTimePosition() + 'rem;'"
-                             x-init="console.log('Current time indicator initialized for today:', '{{ day.date|date:'Y-m-d' }}')">
+                             :style="'top: ' + getCurrentTimePosition() + 'rem;'">
                             <div class="current-time-line"></div>
                             <div class="current-time-dot"></div>
                             <div class="current-time-label" x-text="getCurrentTimeLabel()"></div>
@@ -1271,10 +1245,6 @@ function calendarApp() {
         isResolvingOverload: false,
         
         init() {
-            console.log('✅ Calendar component initialized successfully!');
-            console.log('Alpine.js version:', window.Alpine ? 'loaded' : 'NOT loaded');
-            console.log('CSRF token available:', this.getCSRFToken() ? 'yes' : 'NO');
-            console.log('Component context type:', typeof this);
             this.loadUnscheduledTasks();
             
             // Update current time indicator every minute
@@ -1282,11 +1252,6 @@ function calendarApp() {
             setInterval(() => {
                 this.updateCurrentTimeIndicator();
             }, 60000); // Update every minute
-            
-            // Test if buttons are working - add a simple test
-            setTimeout(() => {
-                this.testButtonsWork();
-            }, 1000);
         },
         
         getCSRFToken() {
@@ -1301,20 +1266,7 @@ function calendarApp() {
             return token;
         },
         
-        testButtonsWork() {
-            console.log('Testing button functionality...');
-            console.log('Re-optimize button exists:', !!document.querySelector('button[\\@click*="reoptimizeSchedule"]'));
-            console.log('AI suggestion button exists:', !!document.querySelector('button[\\@click*="getAISuggestions"]'));
-            console.log('Urgent task button exists:', !!document.querySelector('button[\\@click*="promptUrgentTask"]'));
-            console.log('Sync button exists:', !!document.querySelector('button[\\@click*="quickSync"]'));
-            
-            // Test if functions are accessible in this context
-            console.log('Functions accessible:');
-            console.log('- reoptimizeSchedule:', typeof this.reoptimizeSchedule);
-            console.log('- getAISuggestions:', typeof this.getAISuggestions);
-            console.log('- promptUrgentTask:', typeof this.promptUrgentTask);
-            console.log('- quickSync:', typeof this.quickSync);
-        },
+
         
         loadUnscheduledTasks() {
             // Load unscheduled tasks data from server
@@ -1331,14 +1283,9 @@ function calendarApp() {
                     is_urgent: {{ task.is_urgent_for_js|yesno:"true,false" }}
                 },
                 {% empty %}
-                // NO TASKS FOUND IN TEMPLATE
                 {% endfor %}
             ];
             
-            console.log('DEBUG: Raw template data count: {{ unscheduled_tasks.count }}');
-            
-            console.log('Loaded unscheduled tasks:', unscheduledData.length, 'tasks');
-            console.log('Unscheduled tasks data:', unscheduledData);
             this.unscheduledTasks = unscheduledData;
             this.calculateAnalytics();
             this.applyFilters();
@@ -1374,7 +1321,6 @@ function calendarApp() {
             });
             
             this.filteredTasks = filtered;
-            console.log('Filtered tasks:', this.filteredTasks.length, 'of', this.unscheduledTasks.length);
         },
         
         formatDate(dateStr) {
@@ -1397,7 +1343,6 @@ function calendarApp() {
         },
         
         quickScheduleTask(taskId) {
-            console.log('DEBUG: quickScheduleTask() called with taskId:', taskId);
             // Find next available slot and schedule task there
             fetch('{% url "planner:quick_schedule_task" %}', {
                 method: 'POST',
