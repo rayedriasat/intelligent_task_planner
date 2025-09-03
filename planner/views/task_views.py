@@ -152,7 +152,33 @@ class TaskListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        return Task.objects.filter(user=self.request.user)
+        queryset = Task.objects.filter(user=self.request.user)
+        
+        # Get filter parameters from GET request
+        search = self.request.GET.get('search', '')
+        status = self.request.GET.get('status', '')
+        priority = self.request.GET.get('priority', '')
+        
+        # Apply search filter (search in title and description)
+        if search:
+            queryset = queryset.filter(
+                Q(title__icontains=search) | Q(description__icontains=search)
+            )
+        
+        # Apply status filter
+        if status:
+            queryset = queryset.filter(status=status)
+        
+        # Apply priority filter
+        if priority:
+            try:
+                priority_int = int(priority)
+                queryset = queryset.filter(priority=priority_int)
+            except (ValueError, TypeError):
+                pass  # Ignore invalid priority values
+        
+        # Default ordering by priority (highest first) then by deadline
+        return queryset.order_by('-priority', 'deadline')
 
 
 class TaskCreateView(LoginRequiredMixin, CreateView):
