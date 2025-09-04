@@ -1,0 +1,129 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Add Custom Milestone - {{ habit.title }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="flex items-center space-x-4 mb-8">
+        <div class="w-6 h-16 rounded-full" style="background-color: {{ habit.color }};"></div>
+        <div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Add Custom Milestone</h1>
+            <p class="text-gray-600 dark:text-gray-400 mt-2">Create a custom milestone for "{{ habit.title }}"</p>
+        </div>
+    </div>
+
+    <!-- Form Card -->
+    <div class="glass-card p-8">
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <!-- Milestone Type -->
+            <div>
+                <label for="{{ form.milestone_type.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Milestone Type
+                </label>
+                {{ form.milestone_type }}
+                {% if form.milestone_type.help_text %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.milestone_type.help_text }}</p>
+                {% endif %}
+                {% if form.milestone_type.errors %}
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {{ form.milestone_type.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Title -->
+            <div>
+                <label for="{{ form.title.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Milestone Title
+                </label>
+                {{ form.title }}
+                {% if form.title.help_text %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.title.help_text }}</p>
+                {% endif %}
+                {% if form.title.errors %}
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {{ form.title.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Description (Optional)
+                </label>
+                {{ form.description }}
+                {% if form.description.help_text %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.description.help_text }}</p>
+                {% endif %}
+                {% if form.description.errors %}
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {{ form.description.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Target Value -->
+            <div>
+                <label for="{{ form.target_value.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Target Value
+                </label>
+                {{ form.target_value }}
+                {% if form.target_value.help_text %}
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ form.target_value.help_text }}</p>
+                {% endif %}
+                {% if form.target_value.errors %}
+                    <div class="mt-1 text-sm text-red-600 dark:text-red-400">
+                        {{ form.target_value.errors }}
+                    </div>
+                {% endif %}
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'planner:habit_detail' habit.pk %}" class="btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" class="btn-primary">
+                    Create Milestone
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Milestone Types Info -->
+    <div class="mt-8 glass-card p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Milestone Types</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <h4 class="font-medium text-blue-900 dark:text-blue-300">🔥 Streak Milestone</h4>
+                <p class="text-blue-700 dark:text-blue-400 mt-1">
+                    Achieve a consecutive streak of completions (e.g., 14 days, 30 days)
+                </p>
+            </div>
+            <div class="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <h4 class="font-medium text-green-900 dark:text-green-300">📊 Total Completions</h4>
+                <p class="text-green-700 dark:text-green-400 mt-1">
+                    Reach a total number of completions (e.g., 50 times, 200 times)
+                </p>
+            </div>
+            <div class="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <h4 class="font-medium text-purple-900 dark:text-purple-300">🎯 Consistency Achievement</h4>
+                <p class="text-purple-700 dark:text-purple-400 mt-1">
+                    Maintain a completion rate percentage (e.g., 80%, 95%)
+                </p>
+            </div>
+            <div class="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+                <h4 class="font-medium text-orange-900 dark:text-orange-300">✨ Custom Milestone</h4>
+                <p class="text-orange-700 dark:text-orange-400 mt-1">
+                    Define your own custom milestone criteria
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

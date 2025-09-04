@@ -198,6 +198,231 @@
       0 20px 40px -8px rgba(0, 0, 0, 0.6),
       0 8px 16px -4px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
+
+  /* Habit Tracking Specific Styles */
+  .habit-card {
+    @apply glass-card transition-all duration-300 hover:shadow-2xl hover:scale-[1.02];
+    position: relative;
+    overflow: hidden;
+  }
+
+  .habit-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 4px;
+    height: 100%;
+    background: var(--habit-color, #3B82F6);
+    transition: width 0.3s ease;
+  }
+
+  .habit-card:hover::before {
+    width: 8px;
+  }
+
+  /* Habit Toggle Button */
+  .habit-toggle {
+    @apply transition-all duration-200 relative overflow-hidden;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.8));
+    box-shadow: 
+      0 4px 8px rgba(0, 0, 0, 0.1),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .habit-toggle.completed {
+    background: linear-gradient(145deg, #10B981, #059669);
+    box-shadow: 
+      0 4px 12px rgba(16, 185, 129, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+  }
+
+  .dark .habit-toggle {
+    background: linear-gradient(145deg, rgba(55, 65, 81, 0.9), rgba(75, 85, 99, 0.8));
+  }
+
+  .dark .habit-toggle.completed {
+    background: linear-gradient(145deg, #10B981, #059669);
+  }
+
+  /* Streak Visualization */
+  .streak-counter {
+    @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium;
+    background: linear-gradient(145deg, rgba(251, 146, 60, 0.1), rgba(245, 101, 101, 0.1));
+    border: 1px solid rgba(251, 146, 60, 0.3);
+    color: #EA580C;
+  }
+
+  .dark .streak-counter {
+    background: linear-gradient(145deg, rgba(251, 146, 60, 0.2), rgba(245, 101, 101, 0.2));
+    color: #FB923C;
+  }
+
+  /* Habit Calendar Grid */
+  .habit-calendar {
+    @apply grid grid-cols-7 gap-1;
+  }
+
+  .habit-calendar-day {
+    @apply aspect-square rounded-lg border-2 border-gray-200 dark:border-gray-700 flex items-center justify-center text-sm font-medium transition-all duration-200 cursor-pointer;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.6));
+  }
+
+  .habit-calendar-day.completed {
+    @apply border-green-500 bg-green-500 text-white;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
+    transform: scale(1.05);
+  }
+
+  .habit-calendar-day.missed {
+    @apply border-red-300 bg-red-100 dark:bg-red-900/20;
+  }
+
+  .habit-calendar-day.partial {
+    @apply border-yellow-500 bg-yellow-500 text-white;
+    box-shadow: 0 4px 12px rgba(234, 179, 8, 0.4);
+  }
+
+  .habit-calendar-day.today {
+    @apply ring-2 ring-blue-500 ring-offset-2;
+  }
+
+  .dark .habit-calendar-day {
+    background: linear-gradient(145deg, rgba(55, 65, 81, 0.8), rgba(75, 85, 99, 0.6));
+  }
+
+  /* Progress Ring */
+  .progress-ring {
+    @apply transform -rotate-90;
+  }
+
+  .progress-ring-circle {
+    transition: stroke-dasharray 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Habit Category Badge */
+  .habit-category-badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+
+  .habit-category-badge.health {
+    @apply bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400;
+  }
+
+  .habit-category-badge.learning {
+    @apply bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400;
+  }
+
+  .habit-category-badge.productivity {
+    @apply bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400;
+  }
+
+  .habit-category-badge.mindfulness {
+    @apply bg-indigo-100 text-indigo-800 dark:bg-indigo-900/20 dark:text-indigo-400;
+  }
+
+  .habit-category-badge.social {
+    @apply bg-pink-100 text-pink-800 dark:bg-pink-900/20 dark:text-pink-400;
+  }
+
+  .habit-category-badge.hobbies {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400;
+  }
+
+  .habit-category-badge.work {
+    @apply bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400;
+  }
+
+  .habit-category-badge.finance {
+    @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-400;
+  }
+
+  .habit-category-badge.other {
+    @apply bg-slate-100 text-slate-800 dark:bg-slate-900/20 dark:text-slate-400;
+  }
+
+  /* Milestone Achievement Animation */
+  .milestone-achieved {
+    @apply animate-bounce;
+    animation: achievement 0.6s ease-in-out;
+  }
+
+  @keyframes achievement {
+    0% {
+      transform: scale(0.8);
+      opacity: 0;
+    }
+    50% {
+      transform: scale(1.2);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  /* Habit Stats Cards */
+  .habit-stat-card {
+    @apply glass-card p-4 text-center transition-all duration-300 hover:scale-105;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(248, 250, 252, 0.8));
+  }
+
+  .dark .habit-stat-card {
+    background: linear-gradient(145deg, rgba(31, 41, 55, 0.9), rgba(55, 65, 81, 0.8));
+  }
+
+  /* Floating Action Button for Quick Add */
+  .fab-add-habit {
+    @apply fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-2xl flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 hover:shadow-3xl;
+    box-shadow: 
+      0 10px 25px rgba(59, 130, 246, 0.4),
+      0 4px 12px rgba(139, 92, 246, 0.3);
+  }
+
+  .fab-add-habit:hover {
+    transform: scale(1.1) rotate(90deg);
+    box-shadow: 
+      0 15px 35px rgba(59, 130, 246, 0.5),
+      0 6px 16px rgba(139, 92, 246, 0.4);
+  }
+
+  /* Week Progress Visualization */
+  .week-progress {
+    @apply flex space-x-1;
+  }
+
+  .week-progress-day {
+    @apply w-6 h-8 rounded-md flex items-center justify-center text-xs font-bold transition-all duration-200;
+  }
+
+  .week-progress-day.completed {
+    @apply bg-green-500 text-white;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.4);
+  }
+
+  .week-progress-day.partial {
+    @apply bg-yellow-500 text-white;
+    box-shadow: 0 2px 8px rgba(234, 179, 8, 0.4);
+  }
+
+  .week-progress-day.missed {
+    @apply bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400;
+  }
+
+  /* Habit Form Enhancements */
+  .habit-color-picker {
+    @apply grid grid-cols-6 gap-2 mt-2;
+  }
+
+  .habit-color-option {
+    @apply w-8 h-8 rounded-full border-2 border-gray-300 dark:border-gray-600 cursor-pointer transition-all duration-200 hover:scale-110;
+  }
+
+  .habit-color-option.selected {
+    @apply ring-2 ring-blue-500 ring-offset-2 scale-110;
+  }
     backdrop-filter: blur(25px) saturate(1.3);
   }
 

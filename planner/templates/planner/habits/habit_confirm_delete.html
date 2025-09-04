@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Delete {{ habit.title }} - Intelligent Task Planner{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Archive Habit</h1>
+        <p class="text-gray-600 dark:text-gray-400 mt-2">This will archive your habit and preserve all tracking data</p>
+    </div>
+
+    <!-- Confirmation Card -->
+    <div class="glass-card p-8">
+        <div class="flex items-center space-x-4 mb-6">
+            <div class="w-6 h-16 rounded-full" style="background-color: {{ habit.color }};"></div>
+            <div>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">{{ habit.title }}</h2>
+                <div class="flex items-center space-x-4 mt-1 text-sm text-gray-600 dark:text-gray-400">
+                    <span>{{ habit.get_category_display }}</span>
+                    <span>{{ habit.get_target_frequency_display }}</span>
+                    {% if habit.target_count > 1 %}
+                        <span>{{ habit.target_count }}{% if habit.unit %} {{ habit.unit }}{% endif %}</span>
+                    {% endif %}
+                </div>
+                {% if habit.description %}
+                    <p class="text-gray-600 dark:text-gray-400 mt-2">{{ habit.description }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Warning Message -->
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                        Are you sure you want to archive this habit?
+                    </h3>
+                    <div class="mt-2 text-sm text-yellow-700 dark:text-yellow-300">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li>This habit will be archived and hidden from your active habit list</li>
+                            <li>All your tracking data, streaks, and milestones will be preserved</li>
+                            <li>You can reactivate this habit later if needed</li>
+                            <li>This action can be undone by editing the habit settings</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Habit Statistics -->
+        <div class="grid grid-cols-2 gap-4 mb-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+            <div class="text-center">
+                <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ habit.current_streak }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Current Streak</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl font-bold text-gray-900 dark:text-white">{{ habit.completion_rate }}%</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Completion Rate</div>
+            </div>
+        </div>
+
+        <!-- Confirmation Form -->
+        <form method="post" class="space-y-6">
+            {% csrf_token %}
+            
+            <div class="flex items-center">
+                <input type="checkbox" id="confirm-archive" 
+                       class="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
+                       required>
+                <label for="confirm-archive" class="ml-2 block text-sm text-gray-900 dark:text-white">
+                    I understand that this habit will be archived and hidden from my active habits
+                </label>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="flex justify-between pt-6 border-t border-gray-200 dark:border-gray-700">
+                <a href="{% url 'planner:habit_detail' habit.pk %}" class="btn-secondary">
+                    Cancel
+                </a>
+                <button type="submit" 
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-800 text-white font-medium rounded-lg transition-colors">
+                    Archive Habit
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Alternative Actions -->
+    <div class="mt-8 glass-card p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Alternative Actions</h3>
+        <div class="space-y-3">
+            <div class="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white">Take a break</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Temporarily pause tracking without losing data</p>
+                </div>
+                <a href="{% url 'planner:habit_update' habit.pk %}" class="btn-secondary text-sm">
+                    Edit Settings
+                </a>
+            </div>
+            
+            <div class="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white">Modify habit</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Change frequency, target, or other settings</p>
+                </div>
+                <a href="{% url 'planner:habit_update' habit.pk %}" class="btn-secondary text-sm">
+                    Modify
+                </a>
+            </div>
+            
+            <div class="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white">Create similar habit</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">Start a new habit based on this one</p>
+                </div>
+                <a href="{% url 'planner:habit_create' %}?template={{ habit.pk }}" class="btn-secondary text-sm">
+                    Duplicate
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Form validation
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const checkbox = document.getElementById('confirm-archive');
+    const submitButton = form.querySelector('button[type="submit"]');
+    
+    // Initially disable submit button
+    submitButton.disabled = true;
+    submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+    
+    // Enable/disable submit button based on checkbox
+    checkbox.addEventListener('change', function() {
+        if (this.checked) {
+            submitButton.disabled = false;
+            submitButton.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            submitButton.disabled = true;
+            submitButton.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    });
+});
+</script>
+{% endblock %}
