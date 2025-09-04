@@ -332,6 +332,22 @@
         
         <!-- Tooltip -->
         <div id="heatmapTooltip" class="heatmap-tooltip opacity-0"></div>
+        
+        <!-- Statistics Section -->
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="glass-card p-4 text-center">
+                <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">{{ consistency_stats.total_completed|default:0 }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Total Tasks Completed</div>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <div class="text-2xl font-bold text-green-600 dark:text-green-400">{{ consistency_stats.completed_this_week|default:0 }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Tasks Completed This Week</div>
+            </div>
+            <div class="glass-card p-4 text-center">
+                <div class="text-2xl font-bold text-orange-600 dark:text-orange-400">{{ consistency_stats.longest_streak|default:0 }}</div>
+                <div class="text-sm text-gray-600 dark:text-gray-400">Longest Streak (Days)</div>
+            </div>
+        </div>
     </div>
 
     <!-- Quick Actions -->

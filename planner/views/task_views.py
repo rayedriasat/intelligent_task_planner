@@ -4,6 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView, TemplateView
 from django.urls import reverse_lazy, reverse
 from django.http import JsonResponse, HttpResponse
+from django.shortcuts import redirect
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
@@ -315,15 +316,25 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         # Get task completion stats for consistency report
         current_year = timezone.now().year
                 
-        # Calculate total tasks completed this year
-        year_start = timezone.make_aware(datetime(current_year, 1, 1))
-        year_end = timezone.make_aware(datetime(current_year, 12, 31, 23, 59, 59))
+        # Calculate total tasks completed (all time)
+        total_completed = Task.objects.filter(
+            user=self.request.user,
+            status='completed'
+        ).count()
                 
-        completed_this_year = Task.objects.filter(
+        # Calculate total tasks completed this week
+        today = timezone.now().date()
+        week_start = today - timedelta(days=today.weekday())  # Monday of current week
+        week_end = week_start + timedelta(days=6)  # Sunday of current week
+        
+        week_start_datetime = timezone.make_aware(datetime.combine(week_start, datetime.min.time()))
+        week_end_datetime = timezone.make_aware(datetime.combine(week_end, datetime.max.time()))
+                
+        completed_this_week = Task.objects.filter(
             user=self.request.user,
             status='completed',
-            updated_at__gte=year_start,
-            updated_at__lte=year_end
+            updated_at__gte=week_start_datetime,
+            updated_at__lte=week_end_datetime
         ).count()
                 
         # Get current streak (consecutive days with completed tasks)
@@ -347,6 +358,26 @@ class ProfileView(LoginRequiredMixin, TemplateView):
             # Limit to reasonable streak length
             if current_streak > 365:
                 break
+                
+        # Calculate longest streak ever
+        longest_streak = 0
+        temp_streak = 0
+        check_date = today
+        
+        # Go back from today to find all streaks
+        for days_back in range(730):  # Check last 2 years for performance
+            check_date = today - timedelta(days=days_back)
+            day_completed = Task.objects.filter(
+                user=self.request.user,
+                status='completed',
+                updated_at__date=check_date
+            ).exists()
+            
+            if day_completed:
+                temp_streak += 1
+                longest_streak = max(longest_streak, temp_streak)
+            else:
+                temp_streak = 0
                 
         # Calculate completion rate for this month
         month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -372,8 +403,10 @@ class ProfileView(LoginRequiredMixin, TemplateView):
             'google_integration': google_integration,
             'canvas_integration': canvas_integration,
             'consistency_stats': {
-                'completed_this_year': completed_this_year,
+                'total_completed': total_completed,
+                'completed_this_week': completed_this_week,
                 'current_streak': current_streak,
+                'longest_streak': longest_streak,
                 'completion_rate': round(completion_rate, 1),
                 'current_year': current_year
             }
