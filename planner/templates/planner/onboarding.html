@@ -36,8 +36,12 @@
             <div class="text-left">
                 <label for="{{ form.estimated_hours.id_for_label }}" class="block text-sm font-medium mb-2">
                     How many hours will it take?
+                    <span class="text-xs text-text-secondary dark:text-dark-text-secondary font-normal">(e.g., 2.5)</span>
                 </label>
                 {{ form.estimated_hours }}
+                {% if form.estimated_hours.help_text %}
+                    <p class="text-xs text-text-secondary dark:text-dark-text-secondary mt-1">{{ form.estimated_hours.help_text }}</p>
+                {% endif %}
                 {% if form.estimated_hours.errors %}
                     <div class="text-red-500 text-sm mt-1">{{ form.estimated_hours.errors.0 }}</div>
                 {% endif %}

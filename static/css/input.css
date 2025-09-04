@@ -198,6 +198,7 @@
       0 20px 40px -8px rgba(0, 0, 0, 0.6),
       0 8px 16px -4px rgba(0, 0, 0, 0.3),
       inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
 
   /* Habit Tracking Specific Styles */
   .habit-card {
@@ -375,7 +376,7 @@
 
   /* Floating Action Button for Quick Add */
   .fab-add-habit {
-    @apply fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-2xl flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 hover:shadow-3xl;
+    @apply fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-2xl flex items-center justify-center z-50 transition-all duration-300 hover:scale-110 hover:shadow-2xl;
     box-shadow: 
       0 10px 25px rgba(59, 130, 246, 0.4),
       0 4px 12px rgba(139, 92, 246, 0.3);
@@ -789,7 +790,6 @@
         rgba(99, 102, 241, 1) 100%);
     transform: scale(1.1);
   }
-}
 
 /* Enhanced Utility Classes */
 @layer utilities {

@@ -104,9 +104,9 @@ class QuickTaskForm(forms.ModelForm):
             }),
             'estimated_hours': forms.NumberInput(attrs={
                 'class': 'w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100',
-                'step': '0.5',
-                'min': '0.1',
-                'placeholder': '2.0'
+                'step': '0.25',  # Allow quarter-hour increments like the regular form
+                'min': '0.25',   # Minimum 15 minutes like the regular form
+                'placeholder': 'e.g., 2.5'
             }),
         }
 
@@ -115,6 +115,9 @@ class QuickTaskForm(forms.ModelForm):
         # Set default deadline to tomorrow
         tomorrow = timezone.now() + timedelta(days=1)
         self.fields['deadline'].initial = tomorrow.strftime('%Y-%m-%dT%H:%M')
+        
+        # Add helpful help text similar to the regular form
+        self.fields['estimated_hours'].help_text = "How many hours do you think this task will take? (e.g., 2.5 for 2.5 hours)"
 
 
 class TimeBlockForm(forms.ModelForm):

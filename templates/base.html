@@ -293,8 +293,12 @@
     <header class="glass-card mx-4 mt-4 px-6 py-4 flex justify-between items-center relative z-20">
         <div class="flex items-center space-x-4">
             <h1 class="text-xl font-bold text-primary dark:text-dark-primary">
-                KajBuzz
+                <a href="{% if user.is_authenticated %}{% url 'planner:dashboard' %}{% else %}{% url 'landing' %}{% endif %}" 
+                   class="hover:text-primary dark:hover:text-dark-primary transition-colors">
+                    KajBuzz
+                </a>
             </h1>
+            {% if user.is_authenticated %}
             <nav class="hidden md:flex items-center space-x-6">
                 <a href="{% url 'planner:dashboard' %}" 
                    class="text-text-secondary dark:text-dark-text-secondary hover:text-primary dark:hover:text-dark-primary transition-colors py-2">
@@ -331,6 +335,7 @@
                     <div class="absolute inset-0 bg-gradient-to-r from-primary/20 via-purple-500/20 to-pink-500/20 rounded-lg blur-sm"></div>
                 </a>
             </nav>
+            {% endif %}
         </div>
         
         <div class="flex items-center space-x-4">
@@ -416,6 +421,7 @@
     </header>
 
     <!-- Mobile Navigation -->
+    {% if user.is_authenticated %}
     <div class="md:hidden px-4 mt-4">
         <nav class="solid-card px-4 py-2 flex items-center space-x-4 overflow-x-auto">
             <a href="{% url 'planner:dashboard' %}" 
@@ -444,6 +450,7 @@
             </a>
         </nav>
     </div>
+    {% endif %}
 
     <!-- Messages -->
     {% if messages %}
