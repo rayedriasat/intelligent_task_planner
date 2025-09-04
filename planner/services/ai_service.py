@@ -182,7 +182,7 @@ Provide ONLY valid JSON response, no additional text."""
         }
         
         payload = {
-            "model": "meta-llama/llama-3.3-70b-instruct:free", 
+            "model": "openai/gpt-oss-20b:free", 
             "messages": [
                 {
                     "role": "user", 
