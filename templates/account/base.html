@@ -1,11 +1,84 @@
 {% extends 'base.html' %}
 {% load static %}
 
+{% block extra_head %}
+<style>
+    .futuristic-brand {
+        font-family: 'Courier New', monospace;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+        display: inline-block;
+        position: relative;
+    }
+    
+    .brand-gradient {
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6, #06b6d4);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        animation: brandShift 2.5s ease-in-out infinite;
+    }
+    
+    .brand-accent {
+        color: #10b981;
+        text-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        animation: brandGlow 2s ease-in-out infinite alternate;
+    }
+    
+    .brand-tech {
+        color: #f59e0b;
+        text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        animation: brandPulse 1.8s ease-in-out infinite;
+    }
+    
+    @keyframes brandShift {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+    }
+    
+    @keyframes brandGlow {
+        from { text-shadow: 0 0 10px rgba(16, 185, 129, 0.5); }
+        to { text-shadow: 0 0 15px rgba(16, 185, 129, 0.8), 0 0 25px rgba(16, 185, 129, 0.3); }
+    }
+    
+    @keyframes brandPulse {
+        0%, 100% { 
+            text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+            transform: scale(1); 
+        }
+        50% { 
+            text-shadow: 0 0 15px rgba(245, 158, 11, 0.8), 0 0 25px rgba(245, 158, 11, 0.3);
+            transform: scale(1.02); 
+        }
+    }
+    
+    .dark .futuristic-brand {
+        text-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+    }
+    
+    .dark .brand-accent {
+        color: #34d399;
+        text-shadow: 0 0 12px rgba(52, 211, 153, 0.7);
+    }
+    
+    .dark .brand-tech {
+        color: #fbbf24;
+        text-shadow: 0 0 12px rgba(251, 191, 36, 0.7);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="max-w-md mx-auto">
     <div class="glass-card p-8">
         <div class="text-center mb-8">
-            <h1 class="text-2xl font-bold text-primary dark:text-dark-primary mb-2">KajBuzz</h1>
+            <h1 class="text-2xl font-bold mb-2">
+                <span class="futuristic-brand">
+                    <span class="brand-gradient">K</span><span class="brand-accent">aj</span><span class="brand-gradient">B</span><span class="brand-tech">uzz</span>
+                </span>
+            </h1>
             <p class="text-text-secondary dark:text-dark-text-secondary">
                 {% block auth_subtitle %}Intelligent Task Planning{% endblock %}
             </p>
