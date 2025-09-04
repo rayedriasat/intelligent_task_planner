@@ -86,6 +86,36 @@
         max-height: 200px;
         overflow-y: auto;
     }
+    
+    /* Voice input styles */
+    .voice-button {
+        transition: all 0.3s ease;
+    }
+    
+    .voice-button.recording {
+        background: linear-gradient(45deg, #ef4444, #f97316);
+        animation: recordingPulse 1.5s ease-in-out infinite;
+        transform: scale(1.05);
+    }
+    
+    .voice-button.processing {
+        background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+        animation: processingPulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes recordingPulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    }
+    
+    @keyframes processingPulse {
+        0%, 100% { transform: scale(1.05); }
+        50% { transform: scale(1.1); }
+    }
+    
+    .voice-status {
+        transition: all 0.3s ease;
+    }
 </style>
 {% endblock %}
 
@@ -123,18 +153,56 @@
                     </div>
                     <div class="flex-1 bg-white dark:bg-gray-700 rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-600">
                         <p class="text-sm text-gray-900 dark:text-gray-100 mb-4">
-                            Hello! I'm your AI scheduling assistant. I have complete context about your tasks and schedule. Here's what I can help you with:
+                            Hello! I'm your AI scheduling assistant with <strong>task management capabilities</strong>. I have complete context about your tasks and schedule. Here's what I can help you with:
                         </p>
                         <ul class="text-sm text-gray-600 dark:text-gray-300 list-disc list-inside space-y-1 mb-4">
+                            <li>Create new tasks with voice or text commands</li>
+                            <li>Schedule and reschedule existing tasks</li>
+                            <li>Update task details and priorities</li>
+                            <li>Mark tasks as completed</li>
                             <li>Schedule optimization and planning</li>
                             <li>Task prioritization recommendations</li>
                             <li>Deadline and workload analysis</li>
                             <li>Productivity tips and strategies</li>
-                            <li>Time management advice</li>
                         </ul>
                         
-                        <!-- Quick Questions in Chat -->
+                        <!-- Voice Input Info -->
+                        <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-4">
+                            <div class="flex items-start space-x-2">
+                                <svg class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"></path>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">Voice Input Available!</p>
+                                    <p class="text-xs text-blue-600 dark:text-blue-300">
+                                        Click the microphone button to speak your commands. Try saying: "Add task: Write report, deadline Friday" or "Schedule my unscheduled tasks".
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Task Management Examples -->
                         <div class="border-t border-gray-200 dark:border-gray-600 pt-4">
+                            <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Task Management Examples:</p>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3">
+                                <button onclick="askQuestion('Add task: Write report, deadline Friday, 2 hours')" 
+                                        class="suggestion-pill bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 px-3 py-2 rounded-full text-xs font-medium hover:bg-green-200 dark:hover:bg-green-800 text-left">
+                                    ➕ "Add task: Write report, deadline Friday, 2 hours"
+                                </button>
+                                <button onclick="askQuestion('Schedule meeting prep for 2pm tomorrow')" 
+                                        class="suggestion-pill bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-3 py-2 rounded-full text-xs font-medium hover:bg-blue-200 dark:hover:bg-blue-800 text-left">
+                                    📅 "Schedule meeting prep for 2pm tomorrow"
+                                </button>
+                                <button onclick="askQuestion('Create urgent task: Call client, due today')" 
+                                        class="suggestion-pill bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200 px-3 py-2 rounded-full text-xs font-medium hover:bg-red-200 dark:hover:bg-red-800 text-left">
+                                    ⚡ "Create urgent task: Call client, due today"
+                                </button>
+                                <button onclick="askQuestion('Mark my completed tasks as done')" 
+                                        class="suggestion-pill bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-2 rounded-full text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-800 text-left">
+                                    ✓ "Mark my completed tasks as done"
+                                </button>
+                            </div>
+                            
                             <p class="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">Quick questions to get started:</p>
                             <div class="flex flex-wrap gap-2">
                                 <button onclick="askQuestion('What should I work on today?')" 
@@ -149,10 +217,6 @@
                                         class="suggestion-pill bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-200 px-3 py-2 rounded-full text-xs font-medium hover:bg-orange-200 dark:hover:bg-orange-800">
                                     What tasks are urgent?
                                 </button>
-                                <button onclick="askQuestion('How can I improve my productivity?')" 
-                                        class="suggestion-pill bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200 px-3 py-2 rounded-full text-xs font-medium hover:bg-purple-200 dark:hover:bg-purple-800">
-                                    Productivity tips?
-                                </button>
                                 <button onclick="askQuestion('When should I schedule my unscheduled tasks?')" 
                                         class="suggestion-pill bg-indigo-100 dark:bg-indigo-900 text-indigo-800 dark:text-indigo-200 px-3 py-2 rounded-full text-xs font-medium hover:bg-indigo-200 dark:hover:bg-indigo-800">
                                     Schedule unscheduled tasks?
@@ -166,6 +230,16 @@
 
         <!-- Chat Input -->
         <div class="chat-input-container p-6">
+            <!-- Voice Status Display -->
+            <div id="voice-status" class="voice-status mb-3 hidden">
+                <div class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-2 rounded-lg text-sm flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span id="voice-status-text">Listening...</span>
+                </div>
+            </div>
+            
             <form id="chat-form" class="flex space-x-4">
                 {% csrf_token %}
                 <div class="flex-1">
@@ -175,6 +249,20 @@
                            class="w-full px-5 py-4 border-2 border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 transition-all duration-200"
                            autocomplete="off">
                 </div>
+                
+                <!-- Voice Input Button -->
+                <button type="button" 
+                        id="voice-button"
+                        class="voice-button bg-gray-600 hover:bg-gray-700 text-white p-4 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Click to speak">
+                    <svg id="voice-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"></path>
+                    </svg>
+                    <svg id="voice-stop-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+                
                 <button type="submit" 
                         id="send-button"
                         class="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg">
@@ -298,6 +386,32 @@
             </div>
         </div>
     </div>
+
+    <!-- Voice Not Supported Modal -->
+    <div id="voice-not-supported-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="solid-card p-6 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Voice Input Not Available</h3>
+                <button onclick="hideVoiceNotSupportedModal()"
+                    class="text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <p class="text-gray-600 dark:text-gray-400 mb-4">
+                Voice input is not supported in your browser. Please type your message instead.
+            </p>
+            <p class="text-sm text-gray-500 dark:text-gray-500">
+                Voice input works best in Chrome, Edge, and Safari.
+            </p>
+            <div class="mt-4 flex justify-end">
+                <button onclick="hideVoiceNotSupportedModal()" class="btn-primary text-sm">
+                    Got it
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -310,7 +424,87 @@ const sendIcon = document.getElementById('send-icon');
 const loadingIcon = document.getElementById('loading-icon');
 const chatMessages = document.getElementById('chat-messages');
 
+// Voice elements
+const voiceButton = document.getElementById('voice-button');
+const voiceIcon = document.getElementById('voice-icon');
+const voiceStopIcon = document.getElementById('voice-stop-icon');
+const voiceStatus = document.getElementById('voice-status');
+const voiceStatusText = document.getElementById('voice-status-text');
+
 let isProcessing = false;
+let isRecording = false;
+let recognition = null;
+let voiceSupported = false;
+
+// Initialize voice recognition
+function initVoiceRecognition() {
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        recognition = new SpeechRecognition();
+        
+        recognition.continuous = false;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+        
+        recognition.onstart = function() {
+            isRecording = true;
+            updateVoiceButtonState('recording');
+            showVoiceStatus('Listening... Speak now!');
+        };
+        
+        recognition.onresult = function(event) {
+            let transcript = '';
+            let isFinal = false;
+            
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                transcript += event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    isFinal = true;
+                }
+            }
+            
+            if (transcript.trim()) {
+                chatInput.value = transcript;
+                if (isFinal) {
+                    showVoiceStatus('Processing...');
+                    updateVoiceButtonState('processing');
+                }
+            }
+        };
+        
+        recognition.onerror = function(event) {
+            console.error('Voice recognition error:', event.error);
+            stopVoiceRecording();
+            
+            if (event.error === 'not-allowed') {
+                showVoiceStatus('Microphone access denied. Please allow microphone access and try again.');
+            } else if (event.error === 'no-speech') {
+                showVoiceStatus('No speech detected. Try again.');
+            } else {
+                showVoiceStatus('Voice recognition error. Please try again.');
+            }
+            
+            setTimeout(hideVoiceStatus, 3000);
+        };
+        
+        recognition.onend = function() {
+            if (isRecording) {
+                stopVoiceRecording();
+                // Auto-send if there's text
+                if (chatInput.value.trim() && !isProcessing) {
+                    setTimeout(() => {
+                        sendMessage(chatInput.value.trim());
+                    }, 500);
+                }
+            }
+        };
+        
+        voiceSupported = true;
+    } else {
+        voiceSupported = false;
+        console.log('Speech recognition not supported in this browser');
+    }
+}
 
 // Handle form submission
 chatForm.addEventListener('submit', function(e) {
@@ -320,6 +514,84 @@ chatForm.addEventListener('submit', function(e) {
         sendMessage(message);
     }
 });
+
+// Voice button click handler
+voiceButton.addEventListener('click', function() {
+    if (!voiceSupported) {
+        showVoiceNotSupportedModal();
+        return;
+    }
+    
+    if (isRecording) {
+        stopVoiceRecording();
+    } else {
+        startVoiceRecording();
+    }
+});
+
+// Voice functions
+function startVoiceRecording() {
+    if (!voiceSupported || isProcessing || isRecording) return;
+    
+    try {
+        recognition.start();
+    } catch (error) {
+        console.error('Error starting voice recognition:', error);
+        showVoiceStatus('Error starting voice recognition. Please try again.');
+        setTimeout(hideVoiceStatus, 3000);
+    }
+}
+
+function stopVoiceRecording() {
+    isRecording = false;
+    updateVoiceButtonState('idle');
+    hideVoiceStatus();
+    
+    if (recognition) {
+        try {
+            recognition.stop();
+        } catch (error) {
+            console.error('Error stopping voice recognition:', error);
+        }
+    }
+}
+
+function updateVoiceButtonState(state) {
+    voiceButton.classList.remove('recording', 'processing');
+    
+    if (state === 'recording') {
+        voiceButton.classList.add('recording');
+        voiceIcon.classList.add('hidden');
+        voiceStopIcon.classList.remove('hidden');
+        voiceButton.title = 'Click to stop recording';
+    } else if (state === 'processing') {
+        voiceButton.classList.add('processing');
+        voiceIcon.classList.add('hidden');
+        voiceStopIcon.classList.remove('hidden');
+        voiceButton.title = 'Processing speech...';
+    } else {
+        voiceIcon.classList.remove('hidden');
+        voiceStopIcon.classList.add('hidden');
+        voiceButton.title = 'Click to speak';
+    }
+}
+
+function showVoiceStatus(message) {
+    voiceStatusText.textContent = message;
+    voiceStatus.classList.remove('hidden');
+}
+
+function hideVoiceStatus() {
+    voiceStatus.classList.add('hidden');
+}
+
+function showVoiceNotSupportedModal() {
+    document.getElementById('voice-not-supported-modal').classList.remove('hidden');
+}
+
+function hideVoiceNotSupportedModal() {
+    document.getElementById('voice-not-supported-modal').classList.add('hidden');
+}
 
 // Enable/disable send button based on input (but don't disable initially)
 chatInput.addEventListener('input', function() {
@@ -369,7 +641,7 @@ function sendMessage(message) {
         if (data.success) {
             // Add AI response with animation
             setTimeout(() => {
-                addMessageToChat('ai', data.response, data.suggestions);
+                addMessageToChat('ai', data.response, data.suggestions, data.task_operations);
             }, 200);
         } else {
             // Add error message
@@ -414,7 +686,7 @@ function updateSendButtonState(loading) {
 }
 
 // Add message to chat interface with improved animations
-function addMessageToChat(sender, message, suggestions = null) {
+function addMessageToChat(sender, message, suggestions = null, taskOperations = null) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'message-bubble';
     messageDiv.style.opacity = '0';
@@ -428,6 +700,29 @@ function addMessageToChat(sender, message, suggestions = null) {
     const messageBg = isUser ? 'bg-blue-100 dark:bg-blue-900' : 'bg-white dark:bg-gray-700';
     const maxWidth = isUser ? 'max-w-md ml-auto' : 'max-w-md';
     
+    let taskOperationsHtml = '';
+    if (taskOperations && taskOperations.length > 0) {
+        taskOperationsHtml = `
+            <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-3">
+                <p class="text-xs text-gray-600 dark:text-gray-400 font-medium mb-2">Task Operations:</p>
+                <div class="space-y-2">
+                    ${taskOperations.map(op => {
+                        const statusIcon = op.success ? '✅' : '❌';
+                        const statusColor = op.success ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                        return `
+                            <div class="text-xs ${statusColor} bg-gray-50 dark:bg-gray-800 p-2 rounded border-l-2 ${
+                                op.success ? 'border-green-500' : 'border-red-500'
+                            }">
+                                ${statusIcon} ${op.message || op.error_message || `${op.operation_type} operation`}
+                                ${op.task_id ? `<span class="text-gray-500">(Task #${op.task_id})</span>` : ''}
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+    
     messageDiv.innerHTML = `
         <div class="flex items-start space-x-4 ${messageAlign}">
             <div class="w-10 h-10 ${avatarBg} rounded-xl flex items-center justify-center text-white text-sm font-medium shadow-lg">
@@ -435,14 +730,15 @@ function addMessageToChat(sender, message, suggestions = null) {
             </div>
             <div class="flex-1 ${messageBg} rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-600 ${maxWidth}">
                 <p class="text-sm text-gray-900 dark:text-gray-100 whitespace-pre-wrap leading-relaxed">${escapeHtml(message)}</p>
+                ${taskOperationsHtml}
                 ${suggestions && suggestions.length > 0 ? `
                     <div class="mt-4 border-t border-gray-200 dark:border-gray-600 pt-3">
                         <p class="text-xs text-gray-600 dark:text-gray-400 font-medium mb-2">Suggestions:</p>
                         <div class="flex flex-wrap gap-2">
                             ${suggestions.map(suggestion => `
-                                <div class="text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full border">
+                                <button onclick="askQuestion('${escapeHtml(suggestion)}')" class="text-xs bg-gray-100 dark:bg-gray-600 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full border hover:bg-gray-200 dark:hover:bg-gray-500 transition-colors">
                                     ${escapeHtml(suggestion)}
-                                </div>
+                                </button>
                             `).join('')}
                         </div>
                     </div>
@@ -573,6 +869,9 @@ function hideContextModal() {
 
 // Initialize when page loads
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize voice recognition
+    initVoiceRecognition();
+    
     // Focus on chat input
     chatInput.focus();
     
@@ -596,6 +895,13 @@ document.addEventListener('DOMContentLoaded', function() {
             hideContextModal();
         }
     });
+    
+    // Handle click outside voice modal to close it
+    document.getElementById('voice-not-supported-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideVoiceNotSupportedModal();
+        }
+    });
 });
 
 // Make functions globally available
@@ -603,5 +909,6 @@ window.askQuestion = askQuestion;
 window.clearChat = clearChat;
 window.showScheduleContext = showScheduleContext;
 window.hideContextModal = hideContextModal;
+window.hideVoiceNotSupportedModal = hideVoiceNotSupportedModal;
 </script>
 {% endblock %}

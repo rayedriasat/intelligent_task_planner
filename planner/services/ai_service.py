@@ -65,12 +65,31 @@ class AIResponse:
 
 
 @dataclass
+class TaskOperation:
+    """Represents a task operation to be performed."""
+    operation_type: str  # 'create', 'update', 'delete', 'schedule', 'complete'
+    task_id: Optional[int] = None  # For update/delete operations
+    title: Optional[str] = None
+    description: Optional[str] = None
+    deadline: Optional[str] = None  # ISO format
+    estimated_hours: Optional[float] = None
+    priority: Optional[int] = None
+    start_time: Optional[str] = None  # ISO format
+    end_time: Optional[str] = None  # ISO format
+    status: Optional[str] = None
+    success: bool = False
+    error_message: Optional[str] = None
+    created_task_id: Optional[int] = None  # For successful creation
+
+
+@dataclass
 class AIChatResponse:
     """Structured AI chat response."""
     success: bool
     response: str
     suggestions: Optional[List[str]] = None
     context_summary: Optional[str] = None
+    task_operations: Optional[List[TaskOperation]] = None
     error_message: Optional[str] = None
 
 
@@ -284,7 +303,8 @@ Provide ONLY valid JSON response, no additional text."""
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI response as JSON: {e}")
             try:
-                logger.error(f"Content that failed to parse: {content[:500]}")
+                if 'content' in locals():
+                    logger.error(f"Content that failed to parse: {content[:500]}")
             except:
                 logger.error("Unable to log content that failed to parse")
             return AIResponse(
@@ -384,8 +404,8 @@ Provide ONLY valid JSON response, no additional text."""
                 error_message=f"Unexpected error: {str(e)}"
             )
     
-    def create_chat_prompt(self, user_message: str, user_context: Dict[str, Any]) -> str:
-        """Create the AI prompt for chat responses with full user context."""
+    def create_task_management_prompt(self, user_message: str, user_context: Dict[str, Any]) -> str:
+        """Create the AI prompt for task management with chat capabilities."""
         
         current_time = timezone.now().isoformat()
         
@@ -413,29 +433,76 @@ RECENT ACTIVITY:
 {json.dumps(user_context.get('recent_activity', {}), indent=2)}
 """
 
-        prompt = f"""You are an expert AI scheduling and productivity assistant for a task management application. 
+        prompt = f"""You are an expert AI scheduling and productivity assistant for a task management application with TASK MANAGEMENT CAPABILITIES.
 
-You have full context about the user's schedule, tasks, deadlines, and productivity patterns. Analyze this information to provide helpful, personalized advice.
+You can perform the following task operations:
+1. CREATE new tasks
+2. UPDATE existing tasks 
+3. SCHEDULE tasks at specific times
+4. MARK tasks as completed
+5. DELETE tasks
+6. CHANGE task priorities
+
+You have full context about the user's schedule, tasks, deadlines, and productivity patterns.
 
 {context_summary}
 
 USER MESSAGE: "{user_message}"
 
+TASK MANAGEMENT COMMANDS TO RECOGNIZE:
+- "Add task: [title], deadline [date], [duration]" → CREATE operation
+- "Create task [title] due [date]" → CREATE operation  
+- "Schedule [task] at [time] [date]" → SCHEDULE operation
+- "Edit task [id/title] to [changes]" → UPDATE operation
+- "Mark [task] as done/completed" → COMPLETE operation
+- "Delete task [id/title]" → DELETE operation
+- "Set priority of [task] to [priority]" → UPDATE operation
+
+DEFAULT VALUES FOR NEW TASKS:
+- deadline: tomorrow at 9 AM if not specified
+- estimated_hours: 1.0 if not specified  
+- priority: 2 (medium) if not specified
+- status: 'todo' for new tasks
+
+TIME PARSING RULES:
+- "tomorrow" = next day at 9 AM
+- "today" = same day
+- "next Friday" = next occurrence of Friday
+- "2pm" = 14:00 on specified or next available day
+- "in 3 days" = 3 days from now
+
+PRIORITY MAPPING:
+- "low" = 1
+- "medium" = 2 
+- "high" = 3
+- "urgent" = 4
+
 INSTRUCTIONS:
-1. Provide a helpful, personalized response based on the user's actual data
-2. Be conversational and supportive, not robotic
-3. Reference specific tasks, deadlines, or patterns when relevant
-4. Offer actionable advice and suggestions
-5. If asked about scheduling, suggest specific time slots from their availability
-6. Keep responses concise but informative
-7. Generate 2-3 helpful follow-up suggestions when appropriate
+1. Analyze the user message for task management commands
+2. If task operations are detected, include them in task_operations array
+3. Provide a helpful conversational response about what will be done
+4. If unclear, ask for clarification rather than guessing
+5. For scheduling, suggest specific available time slots when possible
+6. Always confirm significant operations in your response
 
 RESPONSE FORMAT (JSON):
 {{
     "success": true,
-    "response": "Your main response to the user's message",
-    "suggestions": ["Optional follow-up suggestion 1", "Optional follow-up suggestion 2"],
-    "context_summary": "Brief summary of what context was most relevant to this response"
+    "response": "Your conversational response to the user",
+    "suggestions": ["Optional follow-up suggestions"],
+    "context_summary": "Brief summary of what context was most relevant",
+    "task_operations": [
+        {{
+            "operation_type": "create",
+            "title": "Task title",
+            "description": "Optional description", 
+            "deadline": "2024-01-16T09:00:00",
+            "estimated_hours": 1.0,
+            "priority": 2,
+            "start_time": "2024-01-15T14:00:00",
+            "end_time": "2024-01-15T15:00:00"
+        }}
+    ]
 }}
 
 Provide ONLY valid JSON response, no additional text."""
@@ -469,7 +536,7 @@ Provide ONLY valid JSON response, no additional text."""
                 return self._create_fallback_chat_response(user_message, user_context)
             
             # Create chat prompt
-            prompt = self.create_chat_prompt(user_message, user_context)
+            prompt = self.create_task_management_prompt(user_message, user_context)
             
             logger.info(f"Requesting AI chat response for message: {user_message[:50]}...")
             
@@ -538,13 +605,15 @@ Provide ONLY valid JSON response, no additional text."""
                 success=True,
                 response=chat_data.get("response", "I'm here to help with your scheduling!"),
                 suggestions=chat_data.get("suggestions", []),
-                context_summary=chat_data.get("context_summary", "")
+                context_summary=chat_data.get("context_summary", ""),
+                task_operations=self._parse_task_operations(chat_data.get("task_operations", []))
             )
             
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse AI chat response as JSON: {e}")
             try:
-                logger.error(f"Content that failed to parse: {content[:500]}")
+                if 'content' in locals():
+                    logger.error(f"Content that failed to parse: {content[:500]}")
             except:
                 logger.error("Unable to log content that failed to parse")
             return AIChatResponse(
@@ -560,6 +629,31 @@ Provide ONLY valid JSON response, no additional text."""
                 error_message=str(e)
             )
     
+    def _parse_task_operations(self, operations_data: List[Dict[str, Any]]) -> List[TaskOperation]:
+        """Parse task operations from AI response."""
+        operations = []
+        
+        for op_data in operations_data:
+            try:
+                operation = TaskOperation(
+                    operation_type=op_data.get("operation_type") or "unknown",
+                    task_id=op_data.get("task_id"),
+                    title=op_data.get("title"),
+                    description=op_data.get("description"),
+                    deadline=op_data.get("deadline"),
+                    estimated_hours=op_data.get("estimated_hours"),
+                    priority=op_data.get("priority"),
+                    start_time=op_data.get("start_time"),
+                    end_time=op_data.get("end_time"),
+                    status=op_data.get("status")
+                )
+                operations.append(operation)
+            except Exception as e:
+                logger.error(f"Error parsing task operation: {e}")
+                continue
+        
+        return operations
+    
     def _create_fallback_chat_response(self, user_message: str, user_context: Dict[str, Any]) -> AIChatResponse:
         """
         Create a fallback chat response when AI API is unavailable.
@@ -570,35 +664,69 @@ Provide ONLY valid JSON response, no additional text."""
         message_lower = user_message.lower()
         schedule_overview = user_context.get('schedule_overview', {})
         
+        # Check for task management commands
+        task_operations = []
+        response = ""
+        
+        if any(word in message_lower for word in ['add task', 'create task', 'new task']):
+            # Simple task creation fallback
+            task_title = "New Task"  # Default title
+            
+            # Try to extract title from message
+            if 'add task:' in message_lower:
+                parts = user_message.split('add task:', 1)
+                if len(parts) > 1:
+                    task_title = parts[1].split(',')[0].strip()
+            elif 'create task' in message_lower:
+                parts = user_message.split('create task', 1)
+                if len(parts) > 1:
+                    task_title = parts[1].split('due')[0].split('with')[0].strip()
+            
+            # Create task operation
+            tomorrow = (timezone.now() + timedelta(days=1)).replace(hour=9, minute=0, second=0, microsecond=0)
+            task_op = TaskOperation(
+                operation_type="create",
+                title=task_title,
+                deadline=tomorrow.isoformat(),
+                estimated_hours=1.0,
+                priority=2,
+                status="todo"
+            )
+            task_operations.append(task_op)
+            response = f"I'll create a task '{task_title}' with deadline tomorrow at 9 AM and 1 hour estimated duration."
+            
         # Analyze the message and provide contextual responses
-        if any(word in message_lower for word in ['today', 'what should i do', 'work on']):
+        elif any(word in message_lower for word in ['today', 'what should i do', 'work on']):
             tasks_due_today = schedule_overview.get('tasks_due_today', 0)
             unscheduled_tasks = schedule_overview.get('unscheduled_tasks', 0)
             
-            if tasks_due_today > 0:
-                response = f"You have {tasks_due_today} task{'s' if tasks_due_today != 1 else ''} due today. I'd recommend starting with your highest priority items."
-            elif unscheduled_tasks > 0:
-                response = f"You have {unscheduled_tasks} unscheduled task{'s' if unscheduled_tasks != 1 else ''}. Consider scheduling them into your available time blocks."
-            else:
-                response = "Great! It looks like you're caught up with your immediate tasks. This might be a good time to plan ahead or work on longer-term projects."
+            if not response:  # Only set if not already set by task operations
+                if tasks_due_today > 0:
+                    response = f"You have {tasks_due_today} task{'s' if tasks_due_today != 1 else ''} due today. I'd recommend starting with your highest priority items."
+                elif unscheduled_tasks > 0:
+                    response = f"You have {unscheduled_tasks} unscheduled task{'s' if unscheduled_tasks != 1 else ''}. Consider scheduling them into your available time blocks."
+                else:
+                    response = "Great! It looks like you're caught up with your immediate tasks. This might be a good time to plan ahead or work on longer-term projects."
                 
         elif any(word in message_lower for word in ['schedule', 'week', 'upcoming']):
             total_tasks = schedule_overview.get('total_tasks', 0)
             scheduled = schedule_overview.get('scheduled_tasks', 0)
             due_this_week = schedule_overview.get('tasks_due_this_week', 0)
             
-            response = f"You have {total_tasks} total tasks, with {scheduled} already scheduled. {due_this_week} tasks are due this week."
+            if not response:
+                response = f"You have {total_tasks} total tasks, with {scheduled} already scheduled. {due_this_week} tasks are due this week."
             
         elif any(word in message_lower for word in ['urgent', 'deadline', 'overdue']):
             overdue = schedule_overview.get('overdue_tasks', 0)
             due_today = schedule_overview.get('tasks_due_today', 0)
             
-            if overdue > 0:
-                response = f"You have {overdue} overdue task{'s' if overdue != 1 else ''}. I recommend prioritizing these immediately."
-            elif due_today > 0:
-                response = f"You have {due_today} task{'s' if due_today != 1 else ''} due today. These should be your top priority."
-            else:
-                response = "Good news! You don't have any overdue tasks or urgent deadlines today."
+            if not response:
+                if overdue > 0:
+                    response = f"You have {overdue} overdue task{'s' if overdue != 1 else ''}. I recommend prioritizing these immediately."
+                elif due_today > 0:
+                    response = f"You have {due_today} task{'s' if due_today != 1 else ''} due today. These should be your top priority."
+                else:
+                    response = "Good news! You don't have any overdue tasks or urgent deadlines today."
                 
         elif any(word in message_lower for word in ['productivity', 'efficient', 'optimize']):
             response = "Here are some productivity tips: Focus on high-priority tasks during your peak energy hours, break large tasks into smaller chunks, and use time-blocking to stay organized."
@@ -616,7 +744,8 @@ Provide ONLY valid JSON response, no additional text."""
                 "How is my schedule this week?",
                 "What tasks are urgent?"
             ],
-            context_summary="Used basic scheduling logic (AI API unavailable)"
+            context_summary="Used basic scheduling logic (AI API unavailable)",
+            task_operations=task_operations
         )
 
     def _create_fallback_response(self, tasks: List, time_blocks: List) -> AIResponse:

@@ -314,11 +314,17 @@ def send_ai_chat_message(request):
         ai_response = get_ai_chat_response_sync(user_message, user_context)
         
         if ai_response.success:
+            # Execute task operations if any
+            task_results = []
+            if hasattr(ai_response, 'task_operations') and ai_response.task_operations:
+                task_results = _execute_task_operations(ai_response.task_operations, request.user)
+            
             return JsonResponse({
                 'success': True,
                 'response': ai_response.response,
                 'suggestions': ai_response.suggestions if hasattr(ai_response, 'suggestions') else [],
-                'context_used': ai_response.context_summary if hasattr(ai_response, 'context_summary') else None
+                'context_used': ai_response.context_summary if hasattr(ai_response, 'context_summary') else None,
+                'task_operations': task_results
             })
         else:
             return JsonResponse({
@@ -334,6 +340,176 @@ def send_ai_chat_message(request):
             'error': f'Chat service error: {str(e)}',
             'fallback_response': 'I apologize, but I\'m experiencing technical difficulties. Please try again later.'
         })
+
+
+def _execute_task_operations(task_operations, user):
+    """Execute task operations requested by AI."""
+    from django.utils.dateparse import parse_datetime
+    from decimal import Decimal
+    
+    results = []
+    
+    for operation in task_operations:
+        result = {
+            'operation_type': operation.operation_type,
+            'success': False,
+            'error_message': None,
+            'task_id': None,
+            'message': ''
+        }
+        
+        try:
+            if operation.operation_type == 'create':
+                # Create new task
+                task_data = {
+                    'user': user,
+                    'title': operation.title or 'New Task',
+                    'status': 'todo'
+                }
+                
+                # Add optional fields if provided
+                if operation.description:
+                    task_data['description'] = operation.description
+                
+                if operation.deadline:
+                    deadline_dt = parse_datetime(operation.deadline)
+                    if deadline_dt:
+                        task_data['deadline'] = deadline_dt
+                    else:
+                        # Default to tomorrow if parsing fails
+                        from datetime import timedelta
+                        task_data['deadline'] = timezone.now() + timedelta(days=1)
+                else:
+                    # Default deadline tomorrow
+                    from datetime import timedelta
+                    task_data['deadline'] = timezone.now() + timedelta(days=1)
+                
+                if operation.estimated_hours:
+                    task_data['estimated_hours'] = Decimal(str(operation.estimated_hours))
+                else:
+                    task_data['estimated_hours'] = Decimal('1.0')
+                
+                if operation.priority:
+                    task_data['priority'] = operation.priority
+                else:
+                    task_data['priority'] = 2  # Default medium priority
+                
+                # Create the task
+                task = Task.objects.create(**task_data)
+                
+                # Schedule the task if start/end times provided
+                if operation.start_time and operation.end_time:
+                    start_dt = parse_datetime(operation.start_time)
+                    end_dt = parse_datetime(operation.end_time)
+                    if start_dt and end_dt:
+                        task.start_time = start_dt
+                        task.end_time = end_dt
+                        task.save()
+                
+                result['success'] = True
+                result['task_id'] = task.id
+                result['message'] = f"Created task '{task.title}' successfully"
+                
+            elif operation.operation_type == 'update':
+                # Update existing task
+                if not operation.task_id:
+                    result['error_message'] = 'Task ID required for update operation'
+                else:
+                    try:
+                        task = Task.objects.get(id=operation.task_id, user=user)
+                        
+                        # Update fields if provided
+                        if operation.title:
+                            task.title = operation.title
+                        if operation.description is not None:
+                            task.description = operation.description
+                        if operation.deadline:
+                            deadline_dt = parse_datetime(operation.deadline)
+                            if deadline_dt:
+                                task.deadline = deadline_dt
+                        if operation.estimated_hours:
+                            task.estimated_hours = Decimal(str(operation.estimated_hours))
+                        if operation.priority:
+                            task.priority = operation.priority
+                        if operation.status:
+                            task.status = operation.status
+                        
+                        task.save()
+                        result['success'] = True
+                        result['task_id'] = task.id
+                        result['message'] = f"Updated task '{task.title}' successfully"
+                        
+                    except Task.DoesNotExist:
+                        result['error_message'] = f'Task with ID {operation.task_id} not found'
+                        
+            elif operation.operation_type == 'complete':
+                # Mark task as completed
+                if not operation.task_id:
+                    result['error_message'] = 'Task ID required for complete operation'
+                else:
+                    try:
+                        task = Task.objects.get(id=operation.task_id, user=user)
+                        task.status = 'completed'
+                        task.save()
+                        
+                        result['success'] = True
+                        result['task_id'] = task.id
+                        result['message'] = f"Marked task '{task.title}' as completed"
+                        
+                    except Task.DoesNotExist:
+                        result['error_message'] = f'Task with ID {operation.task_id} not found'
+                        
+            elif operation.operation_type == 'schedule':
+                # Schedule an existing task
+                if not operation.task_id or not operation.start_time or not operation.end_time:
+                    result['error_message'] = 'Task ID, start time, and end time required for schedule operation'
+                else:
+                    try:
+                        task = Task.objects.get(id=operation.task_id, user=user)
+                        
+                        start_dt = parse_datetime(operation.start_time)
+                        end_dt = parse_datetime(operation.end_time)
+                        
+                        if start_dt and end_dt:
+                            task.start_time = start_dt
+                            task.end_time = end_dt
+                            task.save()
+                            
+                            result['success'] = True
+                            result['task_id'] = task.id
+                            result['message'] = f"Scheduled task '{task.title}' from {start_dt.strftime('%Y-%m-%d %H:%M')} to {end_dt.strftime('%H:%M')}"
+                        else:
+                            result['error_message'] = 'Invalid start or end time format'
+                            
+                    except Task.DoesNotExist:
+                        result['error_message'] = f'Task with ID {operation.task_id} not found'
+                        
+            elif operation.operation_type == 'delete':
+                # Delete a task
+                if not operation.task_id:
+                    result['error_message'] = 'Task ID required for delete operation'
+                else:
+                    try:
+                        task = Task.objects.get(id=operation.task_id, user=user)
+                        task_title = task.title
+                        task.delete()
+                        
+                        result['success'] = True
+                        result['message'] = f"Deleted task '{task_title}' successfully"
+                        
+                    except Task.DoesNotExist:
+                        result['error_message'] = f'Task with ID {operation.task_id} not found'
+                        
+            else:
+                result['error_message'] = f'Unknown operation type: {operation.operation_type}'
+                
+        except Exception as e:
+            logger.error(f"Error executing task operation {operation.operation_type}: {e}")
+            result['error_message'] = f'Error executing operation: {str(e)}'
+        
+        results.append(result)
+    
+    return results
 
 
 def _get_user_schedule_context(user):
