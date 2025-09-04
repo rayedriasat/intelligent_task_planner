@@ -80,6 +80,11 @@ class TaskOperation:
     success: bool = False
     error_message: Optional[str] = None
     created_task_id: Optional[int] = None  # For successful creation
+    
+    # New confirmation fields
+    requires_confirmation: bool = True
+    operation_summary: Optional[str] = None  # Human-readable description
+    confirmation_token: Optional[str] = None
 
 
 @dataclass
@@ -90,6 +95,8 @@ class AIChatResponse:
     suggestions: Optional[List[str]] = None
     context_summary: Optional[str] = None
     task_operations: Optional[List[TaskOperation]] = None
+    pending_operations: Optional[List[TaskOperation]] = None  # Operations awaiting confirmation
+    requires_confirmation: bool = False  # Whether any operations need confirmation
     error_message: Optional[str] = None
 
 
@@ -201,7 +208,7 @@ Provide ONLY valid JSON response, no additional text."""
         }
         
         payload = {
-            "model": "openai/gpt-oss-20b:free", 
+            "model": "moonshotai/kimi-k2:free", 
             "messages": [
                 {
                     "role": "user", 
@@ -457,6 +464,18 @@ TASK MANAGEMENT COMMANDS TO RECOGNIZE:
 - "Mark [task] as done/completed" → COMPLETE operation
 - "Delete task [id/title]" → DELETE operation
 - "Set priority of [task] to [priority]" → UPDATE operation
+- "Rename [task] to [new_title]" → UPDATE operation
+- "Change [task] deadline to [date]" → UPDATE operation
+
+TASK IDENTIFICATION RULES (CRITICAL):
+- For UPDATE, COMPLETE, DELETE, SCHEDULE operations, you MUST identify the task ID from current_tasks list
+- Use title matching: search current_tasks array for tasks where title contains the user's search term (case-insensitive)
+- EXAMPLE: User says "rename shopping to groceries" → search current_tasks for task with title containing "shopping" → use that task's id
+- EXAMPLE: User says "mark homework as done" → search current_tasks for task with title containing "homework" → use that task's id  
+- EXAMPLE: User says "update task 3 priority to high" → can use task id 3 directly OR search for task with id=3
+- If multiple tasks match, choose the first/most relevant one
+- If no tasks match, respond with error message instead of creating operation without task_id
+- NEVER create UPDATE/COMPLETE/DELETE/SCHEDULE operations without a valid task_id from current_tasks
 
 DEFAULT VALUES FOR NEW TASKS:
 - deadline: tomorrow at 9 AM if not specified
@@ -479,31 +498,46 @@ PRIORITY MAPPING:
 
 INSTRUCTIONS:
 1. Analyze the user message for task management commands
-2. If task operations are detected, include them in task_operations array
-3. Provide a helpful conversational response about what will be done
-4. If unclear, ask for clarification rather than guessing
-5. For scheduling, suggest specific available time slots when possible
-6. Always confirm significant operations in your response
+2. If task operations are detected, include them in task_operations array as PROPOSALS only
+3. DO NOT execute operations immediately - propose them for user confirmation
+4. Provide a helpful conversational response explaining what you want to do
+5. Ask for user confirmation before proceeding with any operations
+6. If unclear, ask for clarification rather than guessing
+7. For scheduling, suggest specific available time slots when possible
+8. Always request confirmation for significant operations
+9. Include detailed operation summaries for user review
 
 RESPONSE FORMAT (JSON):
 {{
     "success": true,
-    "response": "Your conversational response to the user",
+    "response": "I can help you update that task. Here's what I'd like to do: [explain operation]. Would you like me to proceed?",
     "suggestions": ["Optional follow-up suggestions"],
     "context_summary": "Brief summary of what context was most relevant",
+    "requires_confirmation": true,
     "task_operations": [
         {{
-            "operation_type": "create",
-            "title": "Task title",
+            "operation_type": "update",
+            "task_id": 123,
+            "title": "New task title",
             "description": "Optional description", 
             "deadline": "2024-01-16T09:00:00",
             "estimated_hours": 1.0,
             "priority": 2,
-            "start_time": "2024-01-15T14:00:00",
-            "end_time": "2024-01-15T15:00:00"
+            "operation_summary": "Update task 'Old Title' (ID: 123) to have title 'New Title' and priority High",
+            "requires_confirmation": true
         }}
     ]
 }}
+
+IMPORTANT: For UPDATE, COMPLETE, DELETE, SCHEDULE operations, you MUST include a valid task_id from the current_tasks list. 
+
+EXAMPLES OF PROPER TASK IDENTIFICATION:
+- User: "rename homework to assignment" → Find task in current_tasks with title containing "homework" → Use that task's id
+- User: "mark shopping as complete" → Find task with title containing "shopping" → Use that task's id  
+- User: "delete project meeting" → Find task with title containing "project meeting" → Use that task's id
+- User: "change deadline of report to tomorrow" → Find task with title containing "report" → Use that task's id
+
+If you cannot find a matching task, explain this in your response and ask for clarification instead of creating an operation without a task_id.
 
 Provide ONLY valid JSON response, no additional text."""
 
@@ -606,7 +640,8 @@ Provide ONLY valid JSON response, no additional text."""
                 response=chat_data.get("response", "I'm here to help with your scheduling!"),
                 suggestions=chat_data.get("suggestions", []),
                 context_summary=chat_data.get("context_summary", ""),
-                task_operations=self._parse_task_operations(chat_data.get("task_operations", []))
+                pending_operations=self._parse_task_operations(chat_data.get("task_operations", [])),
+                requires_confirmation=chat_data.get("requires_confirmation", False)
             )
             
         except json.JSONDecodeError as e:
@@ -645,7 +680,9 @@ Provide ONLY valid JSON response, no additional text."""
                     priority=op_data.get("priority"),
                     start_time=op_data.get("start_time"),
                     end_time=op_data.get("end_time"),
-                    status=op_data.get("status")
+                    status=op_data.get("status"),
+                    requires_confirmation=op_data.get("requires_confirmation", True),
+                    operation_summary=op_data.get("operation_summary", f"{op_data.get('operation_type', 'unknown')} operation")
                 )
                 operations.append(operation)
             except Exception as e:
@@ -690,10 +727,99 @@ Provide ONLY valid JSON response, no additional text."""
                 deadline=tomorrow.isoformat(),
                 estimated_hours=1.0,
                 priority=2,
-                status="todo"
+                status="todo",
+                operation_summary=f"Create task '{task_title}' with deadline tomorrow at 9 AM and 1 hour estimated duration"
             )
             task_operations.append(task_op)
             response = f"I'll create a task '{task_title}' with deadline tomorrow at 9 AM and 1 hour estimated duration."
+            
+        elif any(word in message_lower for word in ['rename', 'change title', 'update title', 'edit', 'update', 'mark', 'complete', 'done', 'delete', 'remove']):
+            # Handle various update operations
+            current_tasks = user_context.get('current_tasks', [])
+            
+            if 'rename' in message_lower or 'change title' in message_lower or 'update title' in message_lower:
+                # Handle rename operations
+                if ' to ' in message_lower:
+                    parts = message_lower.split(' to ', 1)
+                    if len(parts) == 2:
+                        search_term = parts[0].replace('rename', '').replace('change title of', '').replace('update title of', '').strip()
+                        new_title = parts[1].strip().replace('.', '')
+                        
+                        # Try to find matching task
+                        matching_task = None
+                        for task in current_tasks:
+                            if search_term.lower() in task.get('title', '').lower():
+                                matching_task = task
+                                break
+                        
+                        if matching_task:
+                            task_op = TaskOperation(
+                                operation_type="update",
+                                task_id=matching_task['id'],
+                                title=new_title,
+                                operation_summary=f"Rename task '{matching_task['title']}' to '{new_title}'"
+                            )
+                            task_operations.append(task_op)
+                            response = f"I'll rename the task '{matching_task['title']}' to '{new_title}'. Would you like me to proceed?"
+                        else:
+                            response = f"I couldn't find a task matching '{search_term}'. Could you be more specific about which task you want to rename?"
+                            
+            elif any(word in message_lower for word in ['mark', 'complete', 'done']):
+                # Handle completion operations
+                # Extract task name from patterns like "mark X as done", "complete X", "X is done"
+                search_term = ""
+                if 'mark ' in message_lower and ' as ' in message_lower:
+                    parts = message_lower.split('mark ', 1)[1].split(' as ')[0]
+                    search_term = parts.strip()
+                elif 'complete ' in message_lower:
+                    search_term = message_lower.split('complete ', 1)[1].strip()
+                elif ' is done' in message_lower:
+                    search_term = message_lower.split(' is done')[0].strip()
+                    
+                if search_term:
+                    matching_task = None
+                    for task in current_tasks:
+                        if search_term.lower() in task.get('title', '').lower():
+                            matching_task = task
+                            break
+                    
+                    if matching_task:
+                        task_op = TaskOperation(
+                            operation_type="complete",
+                            task_id=matching_task['id'],
+                            status="completed",
+                            operation_summary=f"Mark task '{matching_task['title']}' as completed"
+                        )
+                        task_operations.append(task_op)
+                        response = f"I'll mark the task '{matching_task['title']}' as completed. Would you like me to proceed?"
+                    else:
+                        response = f"I couldn't find a task matching '{search_term}'. Could you be more specific about which task you want to complete?"
+                        
+            elif any(word in message_lower for word in ['delete', 'remove']):
+                # Handle delete operations
+                search_term = ""
+                if 'delete ' in message_lower:
+                    search_term = message_lower.split('delete ', 1)[1].strip()
+                elif 'remove ' in message_lower:
+                    search_term = message_lower.split('remove ', 1)[1].strip()
+                    
+                if search_term:
+                    matching_task = None
+                    for task in current_tasks:
+                        if search_term.lower() in task.get('title', '').lower():
+                            matching_task = task
+                            break
+                    
+                    if matching_task:
+                        task_op = TaskOperation(
+                            operation_type="delete",
+                            task_id=matching_task['id'],
+                            operation_summary=f"Delete task '{matching_task['title']}'"
+                        )
+                        task_operations.append(task_op)
+                        response = f"I'll delete the task '{matching_task['title']}'. Would you like me to proceed?"
+                    else:
+                        response = f"I couldn't find a task matching '{search_term}'. Could you be more specific about which task you want to delete?"
             
         # Analyze the message and provide contextual responses
         elif any(word in message_lower for word in ['today', 'what should i do', 'work on']):
@@ -745,7 +871,8 @@ Provide ONLY valid JSON response, no additional text."""
                 "What tasks are urgent?"
             ],
             context_summary="Used basic scheduling logic (AI API unavailable)",
-            task_operations=task_operations
+            pending_operations=task_operations,
+            requires_confirmation=len(task_operations) > 0
         )
 
     def _create_fallback_response(self, tasks: List, time_blocks: List) -> AIResponse:

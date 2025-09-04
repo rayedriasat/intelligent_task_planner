@@ -44,6 +44,8 @@
         background: rgba(255, 255, 255, 0.95);
         backdrop-filter: blur(10px);
         border-top: 1px solid rgba(0, 0, 0, 0.1);
+        position: relative;
+        z-index: 10;
     }
     
     .dark .chat-input-container {
@@ -72,6 +74,14 @@
         border-radius: 50%;
         background: currentColor;
         animation: loadingDots 1.4s ease-in-out infinite both;
+    }
+    
+    .loading-dots.hidden {
+        display: none !important;
+    }
+    
+    .loading-dots.hidden div {
+        animation: none !important;
     }
     
     .loading-dots div:nth-child(1) { animation-delay: -0.32s; }
@@ -115,6 +125,64 @@
     
     .voice-status {
         transition: all 0.3s ease;
+        animation: voiceStatusSlideDown 0.3s ease-out;
+    }
+    
+    .voice-status.hidden {
+        animation: voiceStatusSlideUp 0.3s ease-out;
+    }
+    
+    @keyframes voiceStatusSlideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    @keyframes voiceStatusSlideUp {
+        from {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+    }
+    
+    /* Confirmation dialog styles */
+    .confirmation-dialog {
+        transition: all 0.3s ease;
+        backdrop-filter: blur(8px);
+    }
+    
+    .confirmation-card {
+        animation: confirmationSlideIn 0.4s ease-out;
+    }
+    
+    @keyframes confirmationSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+    
+    .operation-card {
+        transition: all 0.2s ease;
+        border-left: 4px solid #3b82f6;
+    }
+    
+    .operation-card:hover {
+        transform: translateX(2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     }
 </style>
 {% endblock %}
@@ -153,18 +221,34 @@
                     </div>
                     <div class="flex-1 bg-white dark:bg-gray-700 rounded-2xl px-6 py-4 shadow-sm border border-gray-100 dark:border-gray-600">
                         <p class="text-sm text-gray-900 dark:text-gray-100 mb-4">
-                            Hello! I'm your AI scheduling assistant with <strong>task management capabilities</strong>. I have complete context about your tasks and schedule. Here's what I can help you with:
+                            Hello! I'm your AI scheduling assistant with <strong>task management capabilities</strong>. I have complete context about your tasks and schedule and can help you manage them safely with confirmations.
                         </p>
                         <ul class="text-sm text-gray-600 dark:text-gray-300 list-disc list-inside space-y-1 mb-4">
+                            <li><strong>🔒 Secure Task Management:</strong> I'll ask for confirmation before making any changes</li>
                             <li>Create new tasks with voice or text commands</li>
                             <li>Schedule and reschedule existing tasks</li>
                             <li>Update task details and priorities</li>
-                            <li>Mark tasks as completed</li>
+                            <li>Mark tasks as completed or delete them</li>
                             <li>Schedule optimization and planning</li>
                             <li>Task prioritization recommendations</li>
                             <li>Deadline and workload analysis</li>
                             <li>Productivity tips and strategies</li>
                         </ul>
+                        
+                        <!-- Security Info -->
+                        <div class="bg-green-50 dark:bg-green-900 p-3 rounded-lg mb-4">
+                            <div class="flex items-start space-x-2">
+                                <svg class="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"></path>
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-green-800 dark:text-green-200 mb-1">Safe & Secure</p>
+                                    <p class="text-xs text-green-600 dark:text-green-300">
+                                        I'll always ask for your permission before creating, modifying, or deleting any tasks. You stay in control!
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
                         
                         <!-- Voice Input Info -->
                         <div class="bg-blue-50 dark:bg-blue-900 p-3 rounded-lg mb-4">
@@ -229,10 +313,10 @@
         </div>
 
         <!-- Chat Input -->
-        <div class="chat-input-container p-6">
-            <!-- Voice Status Display -->
-            <div id="voice-status" class="voice-status mb-3 hidden">
-                <div class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-2 rounded-lg text-sm flex items-center space-x-2">
+        <div class="chat-input-container p-6 relative">
+            <!-- Voice Status Display - Positioned as overlay -->
+            <div id="voice-status" class="voice-status absolute top-2 left-6 right-6 z-10 hidden">
+                <div class="bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 px-4 py-2 rounded-lg text-sm flex items-center space-x-2 shadow-lg border border-blue-200 dark:border-blue-700">
                     <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z" clip-rule="evenodd"></path>
                     </svg>
@@ -265,9 +349,8 @@
                 
                 <button type="submit" 
                         id="send-button"
-                        class="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl flex items-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg">
-                    <span id="send-text">Send</span>
-                    <svg id="send-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        class="bg-primary hover:bg-primary-dark text-white px-8 py-4 rounded-xl flex items-center justify-center space-x-2 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-lg">
+                    <span id="send-text">Send</span><svg id="send-icon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                     </svg>
                     <div id="loading-icon" class="loading-dots hidden">
@@ -412,6 +495,51 @@
             </div>
         </div>
     </div>
+
+    <!-- Confirmation Dialog -->
+    <div id="confirmation-dialog" class="confirmation-dialog hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="confirmation-card solid-card p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-semibold flex items-center space-x-2">
+                    <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Confirm Operations</span>
+                </h3>
+                <button onclick="hideConfirmationDialog()"
+                    class="text-text-secondary dark:text-dark-text-secondary hover:text-text-primary dark:hover:text-dark-text-primary">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="mb-6">
+                <p class="text-gray-700 dark:text-gray-300 mb-4">
+                    I'd like to perform the following operations. Please review and confirm:
+                </p>
+                
+                <div id="operations-list" class="space-y-3">
+                    <!-- Operations will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3">
+                <button onclick="cancelOperations()" 
+                        class="btn-secondary px-6 py-2 order-2 sm:order-1">
+                    Cancel
+                </button>
+                <button onclick="confirmOperations()" 
+                        id="confirm-btn"
+                        class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors order-1 sm:order-2 flex items-center space-x-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Confirm & Execute</span>
+                </button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -435,6 +563,8 @@ let isProcessing = false;
 let isRecording = false;
 let recognition = null;
 let voiceSupported = false;
+let currentConfirmationToken = null;
+let pendingOperations = [];
 
 // Initialize voice recognition
 function initVoiceRecognition() {
@@ -576,13 +706,22 @@ function updateVoiceButtonState(state) {
     }
 }
 
-function showVoiceStatus(message) {
-    voiceStatusText.textContent = message;
-    voiceStatus.classList.remove('hidden');
+function hideVoiceStatus() {
+    const voiceStatus = document.getElementById('voice-status');
+    voiceStatus.classList.add('hidden');
+    // Allow animation to complete before fully hiding
+    setTimeout(() => {
+        if (voiceStatus.classList.contains('hidden')) {
+            voiceStatus.style.display = 'none';
+        }
+    }, 300);
 }
 
-function hideVoiceStatus() {
-    voiceStatus.classList.add('hidden');
+function showVoiceStatus(message) {
+    const voiceStatus = document.getElementById('voice-status');
+    voiceStatusText.textContent = message;
+    voiceStatus.style.display = 'block';
+    voiceStatus.classList.remove('hidden');
 }
 
 function showVoiceNotSupportedModal() {
@@ -593,12 +732,167 @@ function hideVoiceNotSupportedModal() {
     document.getElementById('voice-not-supported-modal').classList.add('hidden');
 }
 
-// Enable/disable send button based on input (but don't disable initially)
+// Confirmation dialog functions
+function showConfirmationDialog(operations) {
+    const dialog = document.getElementById('confirmation-dialog');
+    const operationsList = document.getElementById('operations-list');
+    
+    // Clear previous operations
+    operationsList.innerHTML = '';
+    
+    // Populate operations
+    operations.forEach((operation, index) => {
+        const operationCard = document.createElement('div');
+        operationCard.className = 'operation-card bg-gray-50 dark:bg-gray-800 p-4 rounded-lg';
+        
+        const priorityText = operation.priority ? 
+            ['', 'Low', 'Medium', 'High', 'Urgent'][operation.priority] || 'Medium' : 'Medium';
+        
+        const deadlineText = operation.deadline ? 
+            new Date(operation.deadline).toLocaleDateString('en-US', {
+                weekday: 'short',
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            }) : 'Not specified';
+        
+        operationCard.innerHTML = `
+            <div class="flex items-start space-x-3">
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center flex-shrink-0">
+                    ${getOperationIcon(operation.operation_type)}
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-medium text-gray-900 dark:text-gray-100 mb-1">
+                        ${operation.operation_summary || `${operation.operation_type} operation`}
+                    </h4>
+                    <div class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                        ${operation.title ? `<div><strong>Title:</strong> ${escapeHtml(operation.title)}</div>` : ''}
+                        ${operation.deadline ? `<div><strong>Deadline:</strong> ${deadlineText}</div>` : ''}
+                        ${operation.estimated_hours ? `<div><strong>Duration:</strong> ${operation.estimated_hours} hour${operation.estimated_hours !== 1 ? 's' : ''}</div>` : ''}
+                        ${operation.priority ? `<div><strong>Priority:</strong> ${priorityText}</div>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        operationsList.appendChild(operationCard);
+    });
+    
+    // Show dialog
+    dialog.classList.remove('hidden');
+}
+
+function hideConfirmationDialog() {
+    document.getElementById('confirmation-dialog').classList.add('hidden');
+    currentConfirmationToken = null;
+    pendingOperations = [];
+}
+
+function getOperationIcon(operationType) {
+    const icons = {
+        'create': '<svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"></path></svg>',
+        'update': '<svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"></path></svg>',
+        'delete': '<svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clip-rule="evenodd"></path><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>',
+        'schedule': '<svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd"></path></svg>',
+        'complete': '<svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>'
+    };
+    return icons[operationType] || '<svg class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>';
+}
+
+function confirmOperations() {
+    if (!currentConfirmationToken) {
+        console.error('No confirmation token available');
+        return;
+    }
+    
+    const confirmBtn = document.getElementById('confirm-btn');
+    confirmBtn.disabled = true;
+    confirmBtn.innerHTML = '<div class="loading-dots"><div></div><div></div><div></div></div> <span>Executing...</span>';
+    
+    // Send confirmation request
+    fetch('{% url "planner:confirm_ai_operations" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `confirmation_token=${encodeURIComponent(currentConfirmationToken)}&action=confirm`
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideConfirmationDialog();
+        
+        if (data.success) {
+            // Add success message to chat
+            setTimeout(() => {
+                addMessageToChat('ai', data.message, [], data.task_operations);
+            }, 200);
+        } else {
+            // Add error message to chat
+            setTimeout(() => {
+                addMessageToChat('ai', `Error: ${data.error}`);
+            }, 200);
+        }
+    })
+    .catch(error => {
+        console.error('Error confirming operations:', error);
+        hideConfirmationDialog();
+        setTimeout(() => {
+            addMessageToChat('ai', 'Sorry, there was an error executing the operations. Please try again.');
+        }, 200);
+    })
+    .finally(() => {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> <span>Confirm & Execute</span>';
+    });
+}
+
+function cancelOperations() {
+    if (!currentConfirmationToken) {
+        hideConfirmationDialog();
+        return;
+    }
+    
+    // Send cancellation request
+    fetch('{% url "planner:confirm_ai_operations" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: `confirmation_token=${encodeURIComponent(currentConfirmationToken)}&action=cancel`
+    })
+    .then(response => response.json())
+    .then(data => {
+        hideConfirmationDialog();
+        
+        if (data.success) {
+            // Add cancellation message to chat
+            setTimeout(() => {
+                addMessageToChat('ai', 'Operations cancelled. How else can I help you?');
+            }, 200);
+        }
+    })
+    .catch(error => {
+        console.error('Error cancelling operations:', error);
+        hideConfirmationDialog();
+    });
+}
+
+// Enable/disable send button based on input (but don't interfere with loading state)
 chatInput.addEventListener('input', function() {
     const hasContent = this.value.trim().length > 0;
     if (!isProcessing) {
         sendButton.disabled = !hasContent;
         sendButton.classList.toggle('opacity-50', !hasContent);
+        // Ensure loading icon stays hidden when not processing
+        if (!hasContent) {
+            loadingIcon.classList.add('hidden');
+            loadingIcon.style.display = 'none';
+            sendIcon.classList.remove('hidden');
+        }
     }
 });
 
@@ -639,10 +933,23 @@ function sendMessage(message) {
         removeTypingIndicator(typingId);
         
         if (data.success) {
-            // Add AI response with animation
-            setTimeout(() => {
-                addMessageToChat('ai', data.response, data.suggestions, data.task_operations);
-            }, 200);
+            // Check if operations require confirmation
+            if (data.requires_confirmation && data.pending_operations) {
+                currentConfirmationToken = data.confirmation_token;
+                pendingOperations = data.pending_operations;
+                
+                // Add AI response first
+                setTimeout(() => {
+                    addMessageToChat('ai', data.response, data.suggestions);
+                    // Then show confirmation dialog
+                    showConfirmationDialog(data.pending_operations);
+                }, 200);
+            } else {
+                // Add AI response with any completed task operations
+                setTimeout(() => {
+                    addMessageToChat('ai', data.response, data.suggestions, data.task_operations);
+                }, 200);
+            }
         } else {
             // Add error message
             const errorMsg = data.fallback_response || data.error || 'Sorry, I encountered an error.';
@@ -670,18 +977,22 @@ function sendMessage(message) {
 
 // Update send button loading state
 function updateSendButtonState(loading) {
+    const hasContent = chatInput.value.trim().length > 0;
+    
     if (loading) {
         sendButton.disabled = true;
         sendButton.classList.add('opacity-50');
         sendText.textContent = 'Sending...';
         sendIcon.classList.add('hidden');
         loadingIcon.classList.remove('hidden');
+        loadingIcon.style.display = 'inline-flex';
     } else {
-        sendButton.disabled = chatInput.value.trim().length === 0;
-        sendButton.classList.toggle('opacity-50', chatInput.value.trim().length === 0);
+        sendButton.disabled = !hasContent;
+        sendButton.classList.toggle('opacity-50', !hasContent);
         sendText.textContent = 'Send';
         sendIcon.classList.remove('hidden');
         loadingIcon.classList.add('hidden');
+        loadingIcon.style.display = 'none';
     }
 }
 
@@ -875,8 +1186,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // Focus on chat input
     chatInput.focus();
     
-    // Set initial button state (enabled if input has content)
-    updateSendButtonState(false);
+    // Set initial button state correctly (disabled if no content)
+    const hasInitialContent = chatInput.value.trim().length > 0;
+    sendButton.disabled = !hasInitialContent;
+    sendButton.classList.toggle('opacity-50', !hasInitialContent);
+    sendText.textContent = 'Send';
+    sendIcon.classList.remove('hidden');
+    loadingIcon.classList.add('hidden');
+    // Force stop any animation on the loading icon
+    loadingIcon.style.display = 'none';
     
     // Handle enter key in chat input
     chatInput.addEventListener('keydown', function(e) {
@@ -902,6 +1220,13 @@ document.addEventListener('DOMContentLoaded', function() {
             hideVoiceNotSupportedModal();
         }
     });
+    
+    // Handle click outside confirmation dialog to close it
+    document.getElementById('confirmation-dialog').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideConfirmationDialog();
+        }
+    });
 });
 
 // Make functions globally available
@@ -910,5 +1235,9 @@ window.clearChat = clearChat;
 window.showScheduleContext = showScheduleContext;
 window.hideContextModal = hideContextModal;
 window.hideVoiceNotSupportedModal = hideVoiceNotSupportedModal;
+window.showConfirmationDialog = showConfirmationDialog;
+window.hideConfirmationDialog = hideConfirmationDialog;
+window.confirmOperations = confirmOperations;
+window.cancelOperations = cancelOperations;
 </script>
 {% endblock %}

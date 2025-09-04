@@ -76,6 +76,7 @@ urlpatterns = [
     # AI Integration
     path('ai-chat/', views.AIChatView.as_view(), name='ai_chat'),
     path('api/ai-chat/', views.send_ai_chat_message, name='send_ai_chat_message'),
+    path('api/ai-chat/confirm/', views.confirm_ai_operations, name='confirm_ai_operations'),
     path('api/ai-suggestions/', views.get_ai_scheduling_suggestions, name='get_ai_scheduling_suggestions'),
     path('api/ai-suggestions/apply/', views.apply_ai_suggestions, name='apply_ai_suggestions'),
     

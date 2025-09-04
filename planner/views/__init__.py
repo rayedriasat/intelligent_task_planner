@@ -73,6 +73,7 @@ from .ai_views import (
     apply_ai_suggestions,
     AIChatView,
     send_ai_chat_message,
+    confirm_ai_operations,
 )
 
 from .google_calendar_views import (
@@ -180,6 +181,7 @@ __all__ = [
     'apply_ai_suggestions',
     'AIChatView',
     'send_ai_chat_message',
+    'confirm_ai_operations',
     
     # Google Calendar views
     'GoogleCalendarSettingsView',

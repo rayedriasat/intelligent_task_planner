@@ -314,18 +314,57 @@ def send_ai_chat_message(request):
         ai_response = get_ai_chat_response_sync(user_message, user_context)
         
         if ai_response.success:
-            # Execute task operations if any
-            task_results = []
-            if hasattr(ai_response, 'task_operations') and ai_response.task_operations:
-                task_results = _execute_task_operations(ai_response.task_operations, request.user)
-            
-            return JsonResponse({
+            response_data = {
                 'success': True,
                 'response': ai_response.response,
                 'suggestions': ai_response.suggestions if hasattr(ai_response, 'suggestions') else [],
-                'context_used': ai_response.context_summary if hasattr(ai_response, 'context_summary') else None,
-                'task_operations': task_results
-            })
+                'context_used': ai_response.context_summary if hasattr(ai_response, 'context_summary') else None
+            }
+            
+            # Handle pending operations (require confirmation)
+            if hasattr(ai_response, 'pending_operations') and ai_response.pending_operations:
+                import secrets
+                # Generate confirmation token
+                confirmation_token = secrets.token_urlsafe(32)
+                
+                # Store operations in session for confirmation
+                request.session[f'pending_operations_{confirmation_token}'] = [
+                    {
+                        'operation_type': op.operation_type,
+                        'task_id': op.task_id,
+                        'title': op.title,
+                        'description': op.description,
+                        'deadline': op.deadline,
+                        'estimated_hours': op.estimated_hours,
+                        'priority': op.priority,
+                        'start_time': op.start_time,
+                        'end_time': op.end_time,
+                        'status': op.status,
+                        'operation_summary': op.operation_summary,
+                    } for op in ai_response.pending_operations
+                ]
+                
+                response_data.update({
+                    'requires_confirmation': True,
+                    'confirmation_token': confirmation_token,
+                    'pending_operations': [
+                        {
+                            'operation_type': op.operation_type,
+                            'operation_summary': op.operation_summary,
+                            'title': op.title,
+                            'deadline': op.deadline,
+                            'estimated_hours': op.estimated_hours,
+                            'priority': op.priority,
+                        } for op in ai_response.pending_operations
+                    ]
+                })
+            
+            # Handle immediate task operations (legacy support)
+            elif hasattr(ai_response, 'task_operations') and ai_response.task_operations:
+                task_results = _execute_task_operations(ai_response.task_operations, request.user)
+                response_data['task_operations'] = task_results
+            
+            return JsonResponse(response_data)
         else:
             return JsonResponse({
                 'success': False,
@@ -339,6 +378,99 @@ def send_ai_chat_message(request):
             'success': False,
             'error': f'Chat service error: {str(e)}',
             'fallback_response': 'I apologize, but I\'m experiencing technical difficulties. Please try again later.'
+        })
+
+
+@login_required
+@require_POST
+def confirm_ai_operations(request):
+    """Confirm and execute AI-proposed task operations."""
+    from billing.services import user_has_ai_chat_access
+    
+    if not user_has_ai_chat_access(request.user):
+        return JsonResponse({
+            'success': False,
+            'error': 'You need an AI Chat subscription to access this feature.',
+            'redirect_url': '/billing/subscribe/?feature=ai_chat'
+        }, status=403)
+    
+    try:
+        confirmation_token = request.POST.get('confirmation_token', '').strip()
+        action = request.POST.get('action', '').strip()  # 'confirm' or 'cancel'
+        
+        if not confirmation_token:
+            return JsonResponse({
+                'success': False,
+                'error': 'Confirmation token required'
+            })
+        
+        # Retrieve operations from session
+        session_key = f'pending_operations_{confirmation_token}'
+        if session_key not in request.session:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid or expired confirmation token'
+            })
+        
+        operations_data = request.session[session_key]
+        
+        if action == 'cancel':
+            # Remove from session and return
+            del request.session[session_key]
+            return JsonResponse({
+                'success': True,
+                'message': 'Operations cancelled successfully',
+                'action': 'cancelled'
+            })
+        
+        elif action == 'confirm':
+            # Convert operations data back to TaskOperation objects
+            from ..services.ai_service import TaskOperation
+            operations = []
+            
+            for op_data in operations_data:
+                operation = TaskOperation(
+                    operation_type=op_data['operation_type'],
+                    task_id=op_data.get('task_id'),
+                    title=op_data.get('title'),
+                    description=op_data.get('description'),
+                    deadline=op_data.get('deadline'),
+                    estimated_hours=op_data.get('estimated_hours'),
+                    priority=op_data.get('priority'),
+                    start_time=op_data.get('start_time'),
+                    end_time=op_data.get('end_time'),
+                    status=op_data.get('status')
+                )
+                operations.append(operation)
+            
+            # Execute operations
+            task_results = _execute_task_operations(operations, request.user)
+            
+            # Remove from session
+            del request.session[session_key]
+            
+            # Count successful operations
+            successful_ops = sum(1 for result in task_results if result['success'])
+            total_ops = len(task_results)
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Successfully executed {successful_ops} out of {total_ops} operations',
+                'action': 'confirmed',
+                'task_operations': task_results
+            })
+        
+        else:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid action. Use "confirm" or "cancel"'
+            })
+            
+    except Exception as e:
+        logger.error(f"Error in confirm_ai_operations: {e}")
+        return JsonResponse({
+            'success': False,
+            'error': f'Confirmation error: {str(e)}'
         })
 
 
