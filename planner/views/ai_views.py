@@ -581,7 +581,13 @@ def _execute_task_operations(task_operations, user):
                 else:
                     try:
                         task = Task.objects.get(id=operation.task_id, user=user)
+                        old_status = task.status
                         task.status = 'completed'
+                        
+                        # Set completion time if newly completed
+                        if old_status != 'completed':
+                            task.completed_at = timezone.now()
+                        
                         task.save()
                         
                         result['success'] = True

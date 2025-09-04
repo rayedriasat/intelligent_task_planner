@@ -62,6 +62,7 @@ urlpatterns = [
     path('api/unscheduled-tasks/', views.unscheduled_tasks_partial, name='unscheduled_tasks_partial'),
     path('api/quick-schedule/', views.quick_schedule_task, name='quick_schedule_task'),
     path('api/schedule-urgent/', views.schedule_urgent_tasks, name='schedule_urgent_tasks'),
+    path('api/tasks/completion-data/', views.task_completion_data, name='task_completion_data'),
     
     # Sacrifice mode for urgent tasks
     path('api/create-urgent/', views.create_urgent_task, name='create_urgent_task'),
