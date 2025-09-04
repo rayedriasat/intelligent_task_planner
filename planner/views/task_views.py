@@ -312,10 +312,71 @@ class ProfileView(LoginRequiredMixin, TemplateView):
         except CanvasIntegration.DoesNotExist:
             canvas_integration = None
         
+        # Get task completion stats for consistency report
+        current_year = timezone.now().year
+                
+        # Calculate total tasks completed this year
+        year_start = timezone.make_aware(datetime(current_year, 1, 1))
+        year_end = timezone.make_aware(datetime(current_year, 12, 31, 23, 59, 59))
+                
+        completed_this_year = Task.objects.filter(
+            user=self.request.user,
+            status='completed',
+            updated_at__gte=year_start,
+            updated_at__lte=year_end
+        ).count()
+                
+        # Get current streak (consecutive days with completed tasks)
+        today = timezone.now().date()
+        current_streak = 0
+        check_date = today
+                
+        while True:
+            day_completed = Task.objects.filter(
+                user=self.request.user,
+                status='completed',
+                updated_at__date=check_date
+            ).exists()
+                    
+            if day_completed:
+                current_streak += 1
+                check_date -= timedelta(days=1)
+            else:
+                break
+                        
+            # Limit to reasonable streak length
+            if current_streak > 365:
+                break
+                
+        # Calculate completion rate for this month
+        month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        next_month = month_start.replace(month=month_start.month + 1) if month_start.month < 12 else month_start.replace(year=month_start.year + 1, month=1)
+                
+        completed_this_month = Task.objects.filter(
+            user=self.request.user,
+            status='completed',
+            updated_at__gte=month_start,
+            updated_at__lt=next_month
+        ).count()
+                
+        total_tasks_this_month = Task.objects.filter(
+            user=self.request.user,
+            created_at__gte=month_start,
+            created_at__lt=next_month
+        ).count()
+                
+        completion_rate = (completed_this_month / total_tasks_this_month * 100) if total_tasks_this_month > 0 else 0
+        
         context.update({
             'google_account': google_account,
             'google_integration': google_integration,
             'canvas_integration': canvas_integration,
+            'consistency_stats': {
+                'completed_this_year': completed_this_year,
+                'current_streak': current_streak,
+                'completion_rate': round(completion_rate, 1),
+                'current_year': current_year
+            }
         })
         
         return context

@@ -59,6 +59,7 @@ from .api_views import (
     update_task_time,
     task_card_partial,
     unscheduled_tasks_partial,
+    task_completion_data,
 )
 
 from .notification_views import (

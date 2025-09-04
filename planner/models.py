@@ -40,6 +40,7 @@ class Task(models.Model):
     end_time = models.DateTimeField(null=True, blank=True)
     is_locked = models.BooleanField(default=False)
     actual_hours = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True, help_text="When the task was marked as completed")
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='manual')
     external_id = models.CharField(max_length=255, blank=True, null=True, help_text="ID from external system (Canvas, Google Calendar, etc.)")
     created_at = models.DateTimeField(auto_now_add=True)
