@@ -833,14 +833,6 @@
                                                 </div>
                                             </div>
                                             
-                                            <div class="flex items-center space-x-2 ml-4">
-                                                <input type="checkbox" 
-                                                       :id="'suggestion-' + suggestion.task_id"
-                                                       :value="suggestion.task_id + '_' + suggestion.suggested_start_time"
-                                                       x-model="selectedSuggestions"
-                                                       class="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded">
-                                                <label :for="'suggestion-' + suggestion.task_id" class="text-sm text-gray-600 dark:text-gray-400">Accept</label>
-                                            </div>
                                         </div>
                                     </div>
                                 </template>
@@ -860,21 +852,11 @@
                     </div>
                     
                     <!-- Actions -->
-                    <div x-show="aiSuggestions && aiSuggestions.length > 0 && !aiLoading" class="flex justify-between items-center mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-                        <div class="text-sm text-gray-600 dark:text-gray-400">
-                            <span x-text="selectedSuggestions.length"></span> of <span x-text="aiSuggestions.length"></span> suggestions selected
-                        </div>
-                        <div class="flex space-x-3">
-                            <button @click="closeAISuggestions()"
-                                    class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                                Dismiss
-                            </button>
-                            <button @click="applyAISuggestions()"
-                                    :disabled="selectedSuggestions.length === 0"
-                                    class="px-4 py-2 text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-colors">
-                                Apply Selected Suggestions
-                            </button>
-                        </div>
+                    <div x-show="aiSuggestions && aiSuggestions.length > 0 && !aiLoading" class="flex justify-end mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <button @click="closeAISuggestions()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                            Dismiss
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1230,7 +1212,6 @@ function calendarApp() {
         aiOverallScore: 0,
         aiReasoning: '',
         aiError: null,
-        selectedSuggestions: [],
         
         // Sacrifice mode state
         sacrificeMode: false,
@@ -1968,7 +1949,6 @@ function calendarApp() {
                 
                 if (data.success) {
                     this.aiSuggestions = data.suggestions || [];
-                    this.selectedSuggestions = [];
                     this.aiOverallScore = data.overall_score || 0.7;  // Default to 70% if not provided
                     this.aiReasoning = data.reasoning || 'AI analysis completed successfully.';
                     
@@ -1989,54 +1969,12 @@ function calendarApp() {
         closeAISuggestions() {
             this.showAISuggestions = false;
             this.aiSuggestions = [];
-            this.selectedSuggestions = [];
             this.aiError = null;
             this.aiLoading = false;
             this.aiOverallScore = 0;
             this.aiReasoning = '';
         },
         
-        applyAISuggestions() {
-            console.log('DEBUG: applyAISuggestions called with selectedSuggestions:', this.selectedSuggestions);
-            
-            if (this.selectedSuggestions.length === 0) {
-                this.showToast('Please select at least one suggestion to apply', 'error');
-                return;
-            }
-            
-            const formData = new FormData();
-            this.selectedSuggestions.forEach(suggestionId => {
-                console.log('DEBUG: Adding suggestion ID to form:', suggestionId);
-                formData.append('selected_suggestions', suggestionId);
-            });
-            
-            console.log('DEBUG: Making request to apply AI suggestions...');
-            fetch('{% url "planner:apply_ai_suggestions" %}', {
-                method: 'POST',
-                headers: {
-                    'X-CSRFToken': this.getCSRFToken()
-                },
-                body: formData
-            })
-            .then(response => {
-                console.log('DEBUG: Apply AI suggestions response received:', response.status);
-                return response.json();
-            })
-            .then(data => {
-                console.log('DEBUG: Apply AI suggestions data:', data);
-                if (data.success) {
-                    this.showToast(`Applied ${data.applied_count} AI suggestions successfully!`, 'success');
-                    this.closeAISuggestions();
-                    setTimeout(() => window.location.reload(), 1500);
-                } else {
-                    this.showToast('Error applying AI suggestions: ' + (data.error || 'Unknown error'), 'error');
-                }
-            })
-            .catch(error => {
-                console.error('DEBUG: Error applying AI suggestions:', error);
-                this.showToast('Network error while applying suggestions', 'error');
-            });
-        },
         
         // Overload Resolution Functions
         openOverloadModal(overloadData) {
