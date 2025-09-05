@@ -26,6 +26,15 @@
     
     <!-- Custom CSS -->
     <style>
+        /*
+        Z-Index Hierarchy:
+        - Background elements: -2 to -1
+        - Navigation header: z-10
+        - Main content: z-20
+        - User dropdown: z-50
+        - Falling leaves: z-100
+        - Modals should use z-[100+] (e.g., z-[9999] for overlays)
+        */
         [x-cloak] { display: none !important; }
         
 		* {
@@ -291,7 +300,7 @@
     <meta name="csrf-token" content="{{ csrf_token }}">
     {% csrf_token %}
     <!-- Top Header -->
-    <header class="glass-card mx-4 mt-4 px-6 py-4 flex justify-between items-center relative z-20">
+    <header class="glass-card mx-4 mt-4 px-6 py-4 flex justify-between items-center relative z-10">
         <div class="flex items-center space-x-4">
             <h1 class="text-xl font-bold text-primary dark:text-dark-primary">
                 <a href="{% if user.is_authenticated %}{% url 'planner:dashboard' %}{% else %}{% url 'landing' %}{% endif %}" 
@@ -374,7 +383,7 @@
                          x-transition:leave-start="transform opacity-100 scale-100"
                          x-transition:leave-end="transform opacity-0 scale-95"
                          class="absolute right-0 mt-2 w-48 solid-card py-2"
-                         style="z-index: 99999 !important; position: absolute !important;">
+                         style="z-index: 50 !important; position: absolute !important;">
                         <a href="{% url 'planner:pomodoro' %}" 
                            class="flex items-center justify-between px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
                             <span>Pomodoro Timer</span>
@@ -503,7 +512,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="mx-4 my-8 relative z-10" style="z-index: 10 !important;">
+    <main class="mx-4 my-8 relative z-20" style="z-index: 20 !important;">
         {% block content %}{% endblock %}
     </main>
 
