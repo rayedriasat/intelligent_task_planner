@@ -1923,6 +1923,8 @@ function calendarApp() {
             this.showAISuggestions = true;
             this.aiSuggestions = [];
             this.aiError = null;
+            this.aiOverallScore = 0;
+            this.aiReasoning = '';
             
             fetch('{% url "planner:get_ai_scheduling_suggestions" %}', {
                 method: 'GET',
@@ -1938,6 +1940,8 @@ function calendarApp() {
                 if (data.success) {
                     this.aiSuggestions = data.suggestions || [];
                     this.selectedSuggestions = [];
+                    this.aiOverallScore = data.overall_score || 0.7;  // Default to 70% if not provided
+                    this.aiReasoning = data.reasoning || 'AI analysis completed successfully.';
                     
                     if (this.aiSuggestions.length === 0) {
                         this.aiError = 'No AI suggestions available. Try adding more unscheduled tasks or time blocks.';
@@ -1959,6 +1963,8 @@ function calendarApp() {
             this.selectedSuggestions = [];
             this.aiError = null;
             this.aiLoading = false;
+            this.aiOverallScore = 0;
+            this.aiReasoning = '';
         },
         
         applyAISuggestions() {

@@ -9,7 +9,7 @@ from django.db import transaction
 from datetime import datetime, timedelta
 import logging
 
-from ..models import Task
+from ..models import Task, TimeBlock
 
 logger = logging.getLogger(__name__)
 
@@ -46,11 +46,16 @@ def get_ai_scheduling_suggestions(request):
         ))
         
         if not available_blocks:
-            return JsonResponse({
-                'success': False,
-                'error': 'No available time blocks found for the next 7 days',
-                'suggestions': []
-            })
+            # Auto-create default time blocks if none exist
+            logger.info(f"No time blocks found for user {request.user.username}, creating default availability")
+            available_blocks = _create_default_time_blocks(request.user, start_date, end_date)
+            
+            if not available_blocks:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Unable to create default time blocks. Please add your availability in Settings.',
+                    'suggestions': []
+                })
         
         # Call AI service
         ai_response = get_ai_scheduling_suggestions_sync(unscheduled_tasks, available_blocks)
@@ -282,6 +287,55 @@ class AIChatView(LoginRequiredMixin, TemplateView):
         })
         
         return context
+
+
+def _create_default_time_blocks(user, start_date, end_date):
+    """Create default time blocks for users who haven't set up their availability."""
+    from datetime import datetime, timedelta
+    import pytz
+    
+    try:
+        created_blocks = []
+        current_date = start_date.date()
+        end_date_only = end_date.date()
+        
+        # Create default 9 AM to 5 PM availability for weekdays only
+        while current_date <= end_date_only:
+            # Skip weekends (Saturday=5, Sunday=6)
+            if current_date.weekday() < 5:  # Monday=0 to Friday=4
+                # Create time block from 9 AM to 5 PM
+                start_time = timezone.make_aware(
+                    datetime.combine(current_date, datetime.min.time().replace(hour=9))
+                )
+                end_time = timezone.make_aware(
+                    datetime.combine(current_date, datetime.min.time().replace(hour=17))
+                )
+                
+                # Only create if it doesn't already exist
+                existing_block = user.time_blocks.filter(
+                    start_time__date=current_date
+                ).first()
+                
+                if not existing_block:
+                    time_block = TimeBlock.objects.create(
+                        user=user,
+                        start_time=start_time,
+                        end_time=end_time,
+                        is_recurring=False
+                    )
+                    created_blocks.append(time_block)
+                    logger.info(f"Created default time block for {user.username}: {current_date} 9:00-17:00")
+            
+            current_date += timedelta(days=1)
+        
+        if created_blocks:
+            logger.info(f"Created {len(created_blocks)} default time blocks for user {user.username}")
+        
+        return created_blocks
+        
+    except Exception as e:
+        logger.error(f"Error creating default time blocks for user {user.username}: {e}")
+        return []
 
 
 @login_required
@@ -778,3 +832,52 @@ def _get_user_schedule_context(user):
     }
     
     return context
+
+
+def _create_default_time_blocks(user, start_date, end_date):
+    """Create default time blocks for users who haven't set up their availability."""
+    from datetime import datetime, timedelta
+    import pytz
+    
+    try:
+        created_blocks = []
+        current_date = start_date.date()
+        end_date_only = end_date.date()
+        
+        # Create default 9 AM to 5 PM availability for weekdays only
+        while current_date <= end_date_only:
+            # Skip weekends (Saturday=5, Sunday=6)
+            if current_date.weekday() < 5:  # Monday=0 to Friday=4
+                # Create time block from 9 AM to 5 PM
+                start_time = timezone.make_aware(
+                    datetime.combine(current_date, datetime.min.time().replace(hour=9))
+                )
+                end_time = timezone.make_aware(
+                    datetime.combine(current_date, datetime.min.time().replace(hour=17))
+                )
+                
+                # Only create if it doesn't already exist
+                existing_block = user.time_blocks.filter(
+                    start_time__date=current_date
+                ).first()
+                
+                if not existing_block:
+                    time_block = TimeBlock.objects.create(
+                        user=user,
+                        start_time=start_time,
+                        end_time=end_time,
+                        is_recurring=False
+                    )
+                    created_blocks.append(time_block)
+                    logger.info(f"Created default time block for {user.username}: {current_date} 9:00-17:00")
+            
+            current_date += timedelta(days=1)
+        
+        if created_blocks:
+            logger.info(f"Created {len(created_blocks)} default time blocks for user {user.username}")
+        
+        return created_blocks
+        
+    except Exception as e:
+        logger.error(f"Error creating default time blocks for user {user.username}: {e}")
+        return []
