@@ -23,16 +23,26 @@ def manual_schedule_task(request):
         data = json.loads(request.body)
         task_id = data.get('task_id')
         date_str = data.get('date')  # YYYY-MM-DD
-        hour = int(data.get('hour'))  # 6-24
+        
+        # Handle both legacy hour-only format and new time format
+        if 'time' in data:
+            time_str = data.get('time')  # HH:MM format
+            # Parse the date and time
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            time_obj = datetime.strptime(time_str, '%H:%M').time()
+            start_datetime = timezone.make_aware(
+                datetime.combine(date_obj, time_obj)
+            )
+        else:
+            # Legacy format - hour only (for backward compatibility)
+            hour = int(data.get('hour'))  # 6-24
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            start_datetime = timezone.make_aware(
+                datetime.combine(date_obj, datetime.min.time().replace(hour=hour))
+            )
         
         # Get the task
         task = get_object_or_404(Task, id=task_id, user=request.user)
-        
-        # Parse the date and create datetime
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-        start_datetime = timezone.make_aware(
-            datetime.combine(date_obj, datetime.min.time().replace(hour=hour))
-        )
         
         # Calculate end time based on estimated hours
         estimated_hours = float(task.estimated_hours or 1.0)
@@ -99,7 +109,6 @@ def create_and_schedule_task(request):
         estimated_hours = float(data.get('estimated_hours', 1.0))
         priority = int(data.get('priority', 3))
         date_str = data.get('date')  # YYYY-MM-DD
-        hour = int(data.get('hour'))  # 6-24
         
         if not title:
             return JsonResponse({
@@ -107,11 +116,22 @@ def create_and_schedule_task(request):
                 'error': 'Task title is required'
             })
         
-        # Parse the date and create datetime
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
-        start_datetime = timezone.make_aware(
-            datetime.combine(date_obj, datetime.min.time().replace(hour=hour))
-        )
+        # Handle both legacy hour-only format and new time format
+        if 'time' in data:
+            time_str = data.get('time')  # HH:MM format
+            # Parse the date and time
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            time_obj = datetime.strptime(time_str, '%H:%M').time()
+            start_datetime = timezone.make_aware(
+                datetime.combine(date_obj, time_obj)
+            )
+        else:
+            # Legacy format - hour only (for backward compatibility)
+            hour = int(data.get('hour'))  # 6-24
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            start_datetime = timezone.make_aware(
+                datetime.combine(date_obj, datetime.min.time().replace(hour=hour))
+            )
         end_datetime = start_datetime + timedelta(hours=estimated_hours)
         
         # Check for conflicts

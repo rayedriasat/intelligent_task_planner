@@ -205,8 +205,13 @@
                                    class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300">
                                     Edit
                                 </a>
-                                {% if not task.is_scheduled %}
-                                <button onclick="quickScheduleTask({{ task.pk }})" 
+                                {% if task.is_scheduled %}
+                                <button onclick="openEditScheduleModal({{ task.pk }})" 
+                                        class="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
+                                    Edit Schedule
+                                </button>
+                                {% else %}
+                                <button onclick="openManualScheduleModal({{ task.pk }})" 
                                         class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-300">
                                     Schedule
                                 </button>
@@ -472,5 +477,146 @@ function deleteAllCompleted() {
         alert('Failed to delete completed tasks');
     });
 }
+
+// Manual Scheduling Modal Functions
+let currentTaskId = null;
+
+function openManualScheduleModal(taskId) {
+    currentTaskId = taskId;
+    
+    // Set default date to today
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    document.getElementById('scheduleDate').value = todayStr;
+    
+    // Set default time to current hour + 1
+    const defaultTime = String(today.getHours() + 1).padStart(2, '0') + ':00';
+    document.getElementById('scheduleTime').value = defaultTime;
+    
+    document.getElementById('manualScheduleModal').classList.remove('hidden');
+}
+
+function openEditScheduleModal(taskId) {
+    currentTaskId = taskId;
+    
+    // Find the task row to get current schedule info
+    const taskRow = document.querySelector(`tr[data-task-id="${taskId}"]`);
+    const scheduleCell = taskRow.querySelector('td:nth-child(7)');
+    const scheduleText = scheduleCell.textContent.trim();
+    
+    if (scheduleText !== 'Not scheduled') {
+        // Extract date and time from the schedule text (format: "M d, H:i")
+        const today = new Date();
+        const todayStr = today.toISOString().split('T')[0];
+        const defaultTime = String(today.getHours()).padStart(2, '0') + ':00';
+        
+        // Set defaults (user can adjust as needed)
+        document.getElementById('scheduleDate').value = todayStr;
+        document.getElementById('scheduleTime').value = defaultTime;
+    }
+    
+    document.getElementById('manualScheduleModal').classList.remove('hidden');
+}
+
+function closeManualScheduleModal() {
+    document.getElementById('manualScheduleModal').classList.add('hidden');
+    currentTaskId = null;
+}
+
+function scheduleTaskManually() {
+    const date = document.getElementById('scheduleDate').value;
+    const time = document.getElementById('scheduleTime').value;
+    
+    if (!date || !time) {
+        alert('Please select both date and time');
+        return;
+    }
+    
+    document.getElementById('scheduleButton').disabled = true;
+    document.getElementById('scheduleButton').textContent = 'Scheduling...';
+    
+    fetch('{% url "planner:manual_schedule_task" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        },
+        body: JSON.stringify({
+            task_id: currentTaskId,
+            date: date,
+            time: time
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('scheduleButton').disabled = false;
+        document.getElementById('scheduleButton').textContent = 'Schedule Task';
+        
+        if (data.success) {
+            alert(data.message);
+            closeManualScheduleModal();
+            location.reload();
+        } else {
+            alert('Error: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        document.getElementById('scheduleButton').disabled = false;
+        document.getElementById('scheduleButton').textContent = 'Schedule Task';
+        alert('Network error occurred');
+        console.error('Error:', error);
+    });
+}
 </script>
+
+<!-- Manual Scheduling Modal -->
+<div id="manualScheduleModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md mx-4">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    Schedule Task
+                </h3>
+                <button onclick="closeManualScheduleModal()" 
+                        class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Date
+                    </label>
+                    <input type="date" id="scheduleDate" 
+                           min="{{ today|date:'Y-m-d' }}"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Time
+                    </label>
+                    <input type="time" id="scheduleTime" 
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                
+                <div class="flex space-x-3 mt-6">
+                    <button onclick="closeManualScheduleModal()" 
+                            class="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+                        Cancel
+                    </button>
+                    <button onclick="scheduleTaskManually()" 
+                            id="scheduleButton"
+                            class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors">
+                        Schedule Task
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

@@ -425,6 +425,14 @@
                         </select>
                     </div>
                     
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Time
+                        </label>
+                        <input type="time" x-model="selectedTime" 
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                    </div>
+                    
                     <div class="flex space-x-3">
                         <button @click="closeSchedulingModal()" 
                                 class="flex-1 px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
@@ -458,6 +466,14 @@
                         <textarea x-model="newTaskDescription" 
                                   class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                                   rows="2" placeholder="Enter description..."></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Time
+                        </label>
+                        <input type="time" x-model="selectedTime" 
+                               class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
                     </div>
                     
                     <div class="grid grid-cols-2 gap-3">
@@ -1228,6 +1244,7 @@ function calendarApp() {
         schedulingTab: 'existing',
         selectedDate: null,
         selectedHour: null,
+        selectedTime: '',
         selectedTaskId: '',
         newTaskTitle: '',
         newTaskDescription: '',
@@ -1525,6 +1542,16 @@ function calendarApp() {
             console.log('Opening scheduling modal for:', date, hour); // Debug
             this.selectedDate = date;
             this.selectedHour = hour;
+            
+            // Set default time based on the hour clicked, or current time if no hour specified
+            if (hour !== null && hour !== undefined) {
+                this.selectedTime = hour.toString().padStart(2, '0') + ':00';
+            } else {
+                const now = new Date();
+                this.selectedTime = now.getHours().toString().padStart(2, '0') + ':' + 
+                                   now.getMinutes().toString().padStart(2, '0');
+            }
+            
             this.showSchedulingModal = true;
             this.schedulingTab = 'existing';
             this.selectedTaskId = '';
@@ -1542,22 +1569,24 @@ function calendarApp() {
         },
         
         formatSchedulingDateTime() {
-            if (!this.selectedDate || !this.selectedHour) return '';
+            if (!this.selectedDate || !this.selectedTime) return '';
             
             const date = new Date(this.selectedDate);
-            const hour = parseInt(this.selectedHour);
             const options = { weekday: 'long', month: 'long', day: 'numeric' };
             const dateStr = date.toLocaleDateString('en-US', options);
             
+            // Parse the time (HH:MM format) and format it to 12-hour format
+            const [hour24, minute] = this.selectedTime.split(':').map(Number);
             let timeStr;
-            if (hour === 0) {
-                timeStr = '12:00 AM';
-            } else if (hour < 12) {
-                timeStr = `${hour}:00 AM`;
-            } else if (hour === 12) {
-                timeStr = '12:00 PM';
+            
+            if (hour24 === 0) {
+                timeStr = `12:${minute.toString().padStart(2, '0')} AM`;
+            } else if (hour24 < 12) {
+                timeStr = `${hour24}:${minute.toString().padStart(2, '0')} AM`;
+            } else if (hour24 === 12) {
+                timeStr = `12:${minute.toString().padStart(2, '0')} PM`;
             } else {
-                timeStr = `${hour - 12}:00 PM`;
+                timeStr = `${hour24 - 12}:${minute.toString().padStart(2, '0')} PM`;
             }
             
             return `${dateStr} at ${timeStr}`;
@@ -1577,7 +1606,7 @@ function calendarApp() {
                 body: JSON.stringify({
                     task_id: this.selectedTaskId,
                     date: this.selectedDate,
-                    hour: this.selectedHour
+                    time: this.selectedTime
                 })
             })
             .then(response => response.json())
@@ -1617,7 +1646,7 @@ function calendarApp() {
                     estimated_hours: this.newTaskHours,
                     priority: this.newTaskPriority,
                     date: this.selectedDate,
-                    hour: this.selectedHour
+                    time: this.selectedTime
                 })
             })
             .then(response => response.json())
