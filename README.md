@@ -17,17 +17,21 @@ Our flagship feature uses advanced AI to intelligently schedule your tasks based
 - Estimated task durations
 - Workload balancing
 
-<img src="https://github.com/user-attachments/assets/bde9a136-3633-4a45-a19e-8e45dfdb4d6e" alt="AI Chat" width="90%">
+<img src="https://github.com/user-attachments/assets/bde9a136-3633-4a45-a19e-8e45dfdb4d6e" alt="AI Chat" width="95%">
 
 *AI Chat Interface - Discuss your schedule and get intelligent recommendations*
 
 ### 📅 Smart Scheduling Engine
 Automatically places tasks in optimal time slots while respecting your availability and preventing overbooking.
 
-<img src="https://github.com/user-attachments/assets/934cb241-b988-4de7-becd-457a4f16f231" alt="Calendar View" width="45%">
-  <img src="https://github.com/user-attachments/assets/a1361a2f-9a70-4294-ae40-38c7a813163f" alt="Calendar Ai-Suggestion" width="45%">
+<img src="https://github.com/user-attachments/assets/934cb241-b988-4de7-becd-457a4f16f231" alt="Calendar View" width="95%">
 
 *Calendar View - Visualize your scheduled tasks and available time blocks*
+
+<img src="https://github.com/user-attachments/assets/a1361a2f-9a70-4294-ae40-38c7a813163f" alt="Calendar Ai-Suggestion" width="95%">
+
+*Ai Suggestions*
+
 
 ### 🔗 Seamless Integrations
 - **Google Calendar**: Bi-directional sync keeps your schedule consistent across platforms
@@ -50,7 +54,7 @@ Get insights into your productivity patterns and scheduling optimization history
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/barshon-basak/intelligent_task_planner.git
+   git clone https://github.com/rayedriasat/intelligent_task_planner.git
    cd intelligent_task_planner
    ```
 
